@@ -10,7 +10,7 @@ import BottomNavigationBar from "./components/BottomNavigationBar";
 import { HomePage } from "./pages/HomePage";
 import { DetailsPage } from "./pages/DetailsPage";
 import { CartPage } from "./pages/CartPage";
-import { ProductsPage } from "./pages/ProductsPage";
+import ProductsPage from "./pages/ProductsPage"; // ✅ fixed import (default export)
 import LoginRegisterPage from "./pages/LoginRegisterPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { PaymentPage } from "./pages/PaymentPage";
@@ -77,7 +77,7 @@ export const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/details/:id" element={<DetailsPage />} />
               <Route path="/cart" element={<CartPage />} />
-              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/products" element={<ProductsPage />} /> {/* ✅ Fixed */}
               <Route path="/checkout" element={<CheckoutPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/confirmation" element={<ConfirmationPage />} />
