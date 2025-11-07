@@ -1,19 +1,31 @@
 // Path: /src/pages/AdminDashboardPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  DollarSign, Package, ShoppingCart, Users, Loader, BrainCircuit,
-  User, FileText, ArrowRight, XCircle, LogOut, Wallet,
-  CalendarClock, Navigation, FileSearch, Settings, Inbox, Search, X, Trash2,
-  Phone, MessageSquare, MapPin, Hash, UserCheck, RefreshCw
+  DollarSign, Package, ShoppingCart, Users, Loader, Cpu, 
+  User, FileText, Send, XCircle, LogOut, Wallet,
+  CalendarClock, MapPin, Search, Trash2,
+  Phone, MessageSquare, RefreshCcw, LayoutDashboard, Settings, ListPlus, 
+  Moon, Sun, ImagePlus, ChevronRight, Menu, X 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fileService } from '../utils/fileService';
 
+// --- Global Theme State Management (Using localStorage for persistence) ---
+type Theme = 'light' | 'dark';
+
+// Default to 'light' for Barbershop style
+const getInitialTheme = (): Theme => {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+    return localStorage.getItem('theme') as Theme;
+  }
+  return 'light'; 
+};
+
 // Backend API URL — make sure your backend env matches this
 const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
 
-// --- Interfaces based on backend data ---
+// --- Interfaces based on backend data (No change) ---
 interface OrderItem {
   name: string;
   quantity: number;
@@ -26,7 +38,7 @@ interface Order {
   order_number: string;
   total_amount: number;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  created_at: string | { _seconds: number, _nanoseconds: number }; // Firestore style
+  created_at: string | { _seconds: number, _nanoseconds: number }; 
   user_details: { name: string; email: string; };
   items: OrderItem[];
   shipping_details: {
@@ -46,54 +58,32 @@ interface Order {
 
 const STATUS_OPTIONS: Order['status'][] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
-// Neon border CSS component
-const NeonStyle: React.FC = () => (
-  <style>{`
-    @keyframes rotateNeon { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .neon-card { position: relative; overflow: hidden; z-index: 1; }
-    .neon-card::before {
-      content: ''; position: absolute; width: 150%; height: 150%;
-      top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: conic-gradient(
-        from 0deg,
-        rgba(139, 92, 246, 0.7),
-        rgba(59, 130, 246, 0.7),
-        rgba(139, 92, 246, 0.7),
-        transparent 30%,
-        transparent 70%
-      );
-      z-index: -1;
-      animation: rotateNeon 6s linear infinite;
-    }
-  `}</style>
-);
-
-// Utility component: StatusBadge
+// Utility component: StatusBadge 
 const StatusBadge: React.FC<{ status: Order['status'] }> = ({ status }) => {
   const statusClasses: Record<Order['status'], string> = {
-    Pending: 'bg-yellow-500 text-black',
-    Processing: 'bg-blue-500 text-white',
-    Shipped: 'bg-cyan-500 text-black',
-    Delivered: 'bg-green-500 text-black',
-    Cancelled: 'bg-red-500 text-white',
+    Pending: 'bg-yellow-400 text-yellow-900 dark:bg-yellow-800 dark:text-yellow-100', 
+    Processing: 'bg-blue-400 text-blue-900 dark:bg-blue-800 dark:text-blue-100',
+    Shipped: 'bg-cyan-400 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100',
+    Delivered: 'bg-green-400 text-green-900 dark:bg-green-800 dark:text-green-100',
+    Cancelled: 'bg-red-400 text-red-900 dark:bg-red-800 dark:text-red-100',
   };
   return (
-    <span className={`px-3 py-1 text-xs font-bold rounded-full ${statusClasses[status]}`}>
+    <span className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm ${statusClasses[status]}`}>
       {status}
     </span>
   );
 };
 
-// OrderDetailsModal component
+// OrderDetailsModal component (Theme Fixed)
 interface OrderDetailsModalProps {
   order: Order;
   onClose: () => void;
   onStatusChange: (orderId: string, status: Order['status']) => void;
+  theme: Theme;
 }
-const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, onStatusChange }) => {
+const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, onStatusChange, theme }) => {
   const { shipping_details: shipDetails, payment_info: payInfo } = order;
 
-  // Robust Date Conversion
   const date = (typeof order.created_at === 'string')
     ? new Date(order.created_at).toLocaleString()
     : (order.created_at && (order.created_at as any)._seconds
@@ -101,49 +91,60 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
       : 'N/A');
 
   const items = order.items || [];
+  
+  const isDark = theme === 'dark';
+  const bgColor = isDark ? 'bg-gray-800' : 'bg-white';
+  const textColor = isDark ? 'text-white' : 'text-gray-900';
+  const subTextColor = isDark ? 'text-gray-400' : 'text-gray-600';
+  const cardBg = isDark ? 'bg-gray-700/50' : 'bg-gray-100';
+  const headerColor = isDark ? 'text-cyan-400' : 'text-blue-600'; 
+  const borderColor = isDark ? 'border-gray-600' : 'border-gray-300';
+  const inputBg = isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900';
+  const highlightColor = isDark ? 'text-cyan-500' : 'text-blue-500';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ ease: "easeInOut", duration: 0.2 }}
-        className="bg-neutral-900 p-6 rounded-2xl w-full max-w-4xl border border-neutral-800 shadow-2xl relative"
+        className={`${bgColor} ${textColor} p-6 rounded-2xl w-full max-w-4xl border ${borderColor} shadow-2xl relative`}
       >
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+        <button onClick={onClose} className={`absolute top-4 right-4 ${subTextColor} hover:${headerColor} transition`}>
           <XCircle className="w-7 h-7" />
         </button>
 
-        <div className="border-b border-neutral-800 pb-4 mb-6">
-          <h3 className="text-3xl font-extrabold text-indigo-400 flex items-center">
-            <FileText className="w-7 h-7 mr-3" /> Order Details
+        <div className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'} pb-4 mb-6`}>
+          <h3 className={`text-3xl font-extrabold ${headerColor} flex items-center`}>
+            <FileText className={`w-7 h-7 mr-3 ${highlightColor}`} /> Order Details
           </h3>
-          <p className="text-gray-400 ml-10">
-            Order ID (Firestore): <span className='text-purple-400 font-mono'>{order.id}</span>
+          <p className={`${subTextColor} ml-10 text-sm`}>
+            Order ID: <span className={`${highlightColor} font-mono`}>{order.id}</span>
           </p>
           {order.order_number && (
-            <p className="text-gray-400 ml-10">
-              Order Number: <span className='text-cyan-400 font-mono'>{order.order_number}</span>
+            <p className={`${subTextColor} ml-10 text-sm`}>
+              Order Number: <span className={`${highlightColor} font-mono`}>{order.order_number}</span>
             </p>
           )}
         </div>
 
         <div className="space-y-6 text-sm max-h-[75vh] overflow-y-auto pr-3 -mr-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-neutral-800/50 p-4 rounded-xl border border-neutral-700">
+          {/* Summary Section */}
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${cardBg} p-4 rounded-xl border ${borderColor}`}>
             <div>
-              <h4 className="font-semibold text-gray-400 mb-1 text-xs uppercase tracking-wider flex items-center">
-                <CalendarClock className="w-4 h-4 mr-1.5" /> Order Placed
+              <h4 className={`font-semibold ${subTextColor} mb-1 text-xs uppercase tracking-wider flex items-center`}>
+                <CalendarClock className="w-4 h-4 mr-1.5 text-yellow-500" /> Order Placed
               </h4>
-              <p className='text-gray-200 text-sm'>{date}</p>
+              <p className={textColor}>{date}</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-400 mb-1 text-xs uppercase tracking-wider">Current Status</h4>
+              <h4 className={`font-semibold ${subTextColor} mb-1 text-xs uppercase tracking-wider`}>Current Status</h4>
               <StatusBadge status={order.status} />
             </div>
             <div>
-              <h4 className="font-semibold text-gray-400 mb-1 text-xs uppercase tracking-wider">Grand Total</h4>
-              <p className="text-3xl font-extrabold text-green-400">
+              <h4 className={`font-semibold ${subTextColor} mb-1 text-xs uppercase tracking-wider`}>Grand Total</h4>
+              <p className="text-3xl font-extrabold text-green-500">
                 ${((order.total_amount || 0)).toFixed(2)}
               </p>
             </div>
@@ -152,95 +153,95 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-6">
-              <div className="bg-neutral-800/50 p-5 rounded-xl border border-neutral-700">
-                <h4 className="font-bold text-indigo-400 flex items-center mb-3 text-lg">
+              <div className={`${cardBg} p-5 rounded-xl border ${borderColor} hover:border-indigo-500 transition-all duration-300`}>
+                <h4 className={`font-bold text-indigo-500 flex items-center mb-3 text-lg`}>
                   <User className="w-5 h-5 mr-2" /> Registered User Info
                 </h4>
                 <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-400 w-20 inline-block">Name:</span> <span className="text-white font-medium">{order.user_details.name}</span></p>
-                  <p><span className="text-gray-400 w-20 inline-block">Email:</span> <span className="text-white">{order.user_details.email}</span></p>
+                  <p><span className={`${subTextColor} w-20 inline-block`}>Name:</span> <span className={`${textColor} font-medium`}>{order.user_details.name}</span></p>
+                  <p><span className={`${subTextColor} w-20 inline-block`}>Email:</span> <span className={textColor}>{order.user_details.email}</span></p>
                 </div>
               </div>
 
-              <div className="bg-neutral-800/50 p-5 rounded-xl border border-neutral-700">
-                <h4 className="font-bold text-indigo-400 flex items-center mb-3 text-lg">
-                  <Navigation className="w-5 h-5 mr-2" /> Shipping Details
+              <div className={`${cardBg} p-5 rounded-xl border ${borderColor} hover:border-indigo-500 transition-all duration-300`}>
+                <h4 className={`font-bold text-indigo-500 flex items-center mb-3 text-lg`}>
+                  <MapPin className="w-5 h-5 mr-2" /> Shipping Details
                 </h4>
                 <div className="space-y-2 text-sm">
                   <p className="flex items-center">
-                    <UserCheck className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-20 inline-block">Recipient:</span>
-                    <span className="text-white font-medium">{shipDetails.recipient_name || 'N/A'}</span>
+                    <User className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-20 inline-block`}>Recipient:</span>
+                    <span className={`${textColor} font-medium`}>{shipDetails.recipient_name || 'N/A'}</span>
                   </p>
                   <p className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-20 inline-block">Contact:</span>
-                    <span className='text-cyan-300 font-medium'>{shipDetails.contact || 'N/A'}</span>
+                    <Phone className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-20 inline-block`}>Contact:</span>
+                    <span className={highlightColor+' font-medium'}>{shipDetails.contact || 'N/A'}</span>
                   </p>
                   <p className="flex items-center">
-                    <MessageSquare className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-20 inline-block">Whatsapp:</span>
-                    <span className='text-cyan-300'>{shipDetails.whatsapp || 'N/A'}</span>
+                    <MessageSquare className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-20 inline-block`}>Whatsapp:</span>
+                    <span className={highlightColor}>{shipDetails.whatsapp || 'N/A'}</span>
                   </p>
                   <p className="flex items-start">
-                    <MapPin className="w-4 h-4 mr-2 mt-0.5 text-gray-400" />
-                    <span className="text-gray-400 w-20 inline-block align-top">Address:</span>
-                    <span className="text-white break-words inline-block w-[calc(100%-6rem)]">{shipDetails.address || 'N/A'}</span>
+                    <MapPin className="w-4 h-4 mr-2 mt-0.5 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-20 inline-block align-top`}>Address:</span>
+                    <span className={`${textColor} break-words inline-block w-[calc(100%-6rem)]`}>{shipDetails.address || 'N/A'}</span>
                   </p>
                   <p className="flex items-start">
-                    <FileText className="w-4 h-4 mr-2 mt-0.5 text-gray-400" />
-                    <span className="text-gray-400 w-20 inline-block">Note:</span>
-                    <span className="text-gray-300 italic">{shipDetails.note || 'None'}</span>
-                  </p> {/* 💡 FIX: Yahan ghalti se </img-p> tha, ab </p> kar diya hai */}
+                    <FileText className="w-4 h-4 mr-2 mt-0.5 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-20 inline-block`}>Note:</span>
+                    <span className={`${isDark ? 'text-gray-300' : 'text-gray-700'} italic`}>{shipDetails.note || 'None'}</span>
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Right Column */}
             <div className="space-y-6">
-              <div className="bg-neutral-800/50 p-5 rounded-xl border border-neutral-700">
-                <h4 className="font-bold text-green-400 flex items-center mb-3 text-lg">
+              <div className={`${cardBg} p-5 rounded-xl border ${borderColor} hover:border-green-500 transition-all duration-300`}>
+                <h4 className="font-bold text-green-500 flex items-center mb-3 text-lg">
                   <Wallet className="w-5 h-5 mr-2" /> Payment Information
                 </h4>
                 <div className="space-y-2 text-sm">
                   <p className="flex items-center">
-                    <Wallet className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-24 inline-block">Method:</span>
-                    <span className='font-medium text-white'>{payInfo.method_name || 'N/A'}</span>
+                    <Wallet className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-24 inline-block`}>Method:</span>
+                    <span className={`font-medium ${textColor}`}>{payInfo.method_name || 'N/A'}</span>
                   </p>
                   <p className="flex items-center">
-                    <Hash className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-24 inline-block">Txn ID:</span>
-                    <span className='text-cyan-300 break-all'>{payInfo.txn_id || 'Not Provided'}</span>
+                    <FileText className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-24 inline-block`}>Txn ID:</span>
+                    <span className={`${highlightColor} break-all`}>{payInfo.txn_id || 'Not Provided'}</span>
                   </p>
                   <p className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                    <span className="text-gray-400 w-24 inline-block">Account No:</span>
-                    <span className='text-white'>{payInfo.account_number || 'N/A'}</span>
+                    <Phone className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className={`${subTextColor} w-24 inline-block`}>Account No:</span>
+                    <span className={textColor}>{payInfo.account_number || 'N/A'}</span>
                   </p>
-                  <p className="mt-3 p-2 bg-yellow-900/50 border border-yellow-700 text-yellow-300 text-xs rounded-lg">
+                  <p className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 text-xs rounded-lg shadow-inner">
                     Admin Note: Verify Payment First!
                   </p>
                 </div>
               </div>
 
-              <div className="bg-neutral-800/50 p-5 rounded-xl border border-neutral-700">
-                <h4 className="font-bold text-indigo-400 flex items-center mb-3 text-lg">
+              <div className={`${cardBg} p-5 rounded-xl border ${borderColor}`}>
+                <h4 className={`font-bold ${headerColor} flex items-center mb-3 text-lg`}>
                   <ShoppingCart className="w-5 h-5 mr-2" /> Ordered Items ({items.length})
                 </h4>
                 <ul className="space-y-2 max-h-48 overflow-y-auto pr-2">
                   {items.length > 0 ? items.map((item, index) => (
-                    <li key={index} className="flex justify-between items-center text-gray-300 text-sm p-2 bg-neutral-700/50 rounded-md">
+                    <li key={index} className={`flex justify-between items-center text-sm p-2 rounded-md border-l-4 ${isDark ? 'border-cyan-500/50 bg-gray-600/60 text-gray-300' : 'border-blue-500/50 bg-gray-200/60 text-gray-700'}`}>
                       <div>
-                        <span className='font-medium text-white'>{item.name || 'Unknown Product'}</span>
-                        <span className="text-gray-400"> (x{item.quantity || 1})</span>
+                        <span className={`font-medium ${textColor}`}>{item.name || 'Unknown Product'}</span>
+                        <span className={subTextColor}> (x{item.quantity || 1})</span>
                       </div>
-                      <span className='text-green-400 font-medium'>
+                      <span className='text-green-500 font-medium'>
                         ${( (item.price || 0) * (item.quantity || 1) ).toFixed(2)}
                       </span>
                     </li>
                   )) : (
-                    <li className="text-gray-400 text-sm italic">No items in this order.</li>
+                    <li className={`${subTextColor} text-sm italic p-2`}>No items in this order.</li>
                   )}
                 </ul>
               </div>
@@ -249,13 +250,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
           </div>
         </div>
 
-        <div className="pt-5 flex justify-end border-t border-neutral-800 mt-6">
+        <div className={`pt-5 flex justify-end border-t ${isDark ? 'border-gray-700' : 'border-gray-300'} mt-6`}>
           <label className="flex items-center gap-3">
-            <span className="text-gray-400 font-medium">Update Status:</span>
+            <span className={`${subTextColor} font-medium`}>Update Status:</span>
             <select
               value={order.status}
               onChange={(e) => onStatusChange(order.id, e.target.value as Order['status'])}
-              className="bg-neutral-700 border border-neutral-600 text-white rounded-lg p-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className={`${inputBg} rounded-lg p-3 text-sm focus:ring-blue-500 focus:border-blue-500 transition-all duration-200`}
             >
               {STATUS_OPTIONS.map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -268,12 +269,53 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
   );
 };
 
+// --- Sidebar Navigation Component ---
+interface NavItemProps {
+  icon: React.ElementType;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  isDarkTheme: boolean;
+}
+const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, isActive, onClick, isDarkTheme }) => {
+  // Light Mode (Barbershop style)
+  const activeLightClasses = 'bg-blue-100 text-blue-700 border-blue-500';
+  const inactiveLightClasses = 'text-gray-600 hover:bg-gray-200/50 hover:text-gray-900 border-transparent';
+  
+  // Dark Mode (Affiliate style)
+  const activeDarkClasses = 'dark:bg-cyan-500/20 dark:text-cyan-400 dark:border-cyan-500';
+  const inactiveDarkClasses = 'dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-white dark:border-transparent';
+
+  const baseClasses = 'flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4';
+  
+  const currentActiveClasses = isActive 
+    ? (isDarkTheme ? activeDarkClasses : activeLightClasses) 
+    : (isDarkTheme ? inactiveDarkClasses : inactiveLightClasses);
+
+  const textColor = isDarkTheme ? 'text-white' : 'text-gray-900';
+
+  const iconColor = isActive 
+    ? (isDarkTheme ? 'text-cyan-400' : 'text-blue-700') 
+    : (isDarkTheme ? 'text-gray-500' : 'text-gray-600');
+
+  return (
+    <button
+      onClick={onClick}
+      className={`${baseClasses} ${currentActiveClasses} ${textColor} ${isActive ? '' : 'hover:text-gray-900 dark:hover:text-white'}`}
+    >
+      <Icon className={`w-5 h-5 mr-3 ${iconColor}`} />
+      <span className="font-medium text-sm">{label}</span>
+      {isActive && <ChevronRight className={`w-4 h-4 ml-auto ${iconColor}`} />}
+    </button>
+  );
+};
+
 // Main AdminDashboardPage component
 export function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [loadingInitial, setLoadingInitial] = useState<boolean>(true); // Initial Load
-  const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false); // Refreshing Load
+  const [loadingInitial, setLoadingInitial] = useState<boolean>(true); 
+  const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false); 
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [aiQuery, setAiQuery] = useState<string>('');
@@ -283,12 +325,67 @@ export function AdminDashboardPage() {
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [newCode, setNewCode] = useState<string>('');
   const [imageFile, setImageFile] = useState<File | null>(null);
+  
+  // Ref for scrolling to sections
+  const aiRef = useRef<HTMLDivElement>(null);
+  const ordersRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Theme State
+  const [theme, setTheme] = useState<Theme>(getInitialTheme); 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => {
+      const newTheme = prevTheme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
+    });
+  };
 
   const navigate = useNavigate();
-  const adminName = localStorage.getItem('userName') || 'Admin';
   const authToken = localStorage.getItem('authToken');
 
-  const fetchAdminData = async (isInitial = false) => {
+  // --- Theme Classes (Light Mode Default, Dark Mode with 'dark:' prefix) ---
+  const isDark = theme === 'dark';
+  const themeClasses = {
+    // Light Mode (Barbershop Style) / Dark Mode (Affiliate Style)
+    bg: 'bg-gray-50 dark:bg-[#151723]', 
+    text: 'text-gray-900 dark:text-white',
+    subText: 'text-gray-600 dark:text-gray-400',
+    sidebarBg: 'bg-white dark:bg-[#1e202e]',
+    headerBg: 'bg-white dark:bg-[#1e202e]',
+    cardBg: 'bg-white dark:bg-[#1e202e]',
+    cardBorder: 'border-gray-200 dark:border-gray-700',
+    inputBg: 'bg-gray-100 border-gray-300 dark:bg-gray-700/50 dark:border-gray-600',
+    tableHeaderBg: 'bg-gray-100 dark:bg-gray-700',
+    tableRowHover: 'hover:bg-gray-100/70 dark:hover:bg-gray-700/70',
+    primary: 'bg-blue-600 hover:bg-blue-700 dark:bg-cyan-600 dark:hover:bg-cyan-500', 
+    primaryText: 'text-blue-600 dark:text-cyan-600',
+    danger: 'bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500',
+    warning: 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500 dark:bg-yellow-600 dark:text-white dark:hover:bg-yellow-500', // Adjusted light mode warning color for better visibility
+    
+    // Metric Card Colors 
+    metricBg1: 'bg-white dark:bg-green-600',
+    metricBg2: 'bg-white dark:bg-indigo-600',
+    metricBg3: 'bg-white dark:bg-orange-600',
+    metricBg4: 'bg-white dark:bg-pink-600',
+  };
+  
+  // Apply theme to document body
+  useEffect(() => {
+    // This is the crucial step to ensure dark mode class is applied to the root element
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+  // --- END UI THEME CLASSES ---
+
+
+  // --- Data Fetching & CRUD (Unchanged logic) ---
+  const fetchAdminData = useCallback(async (isInitial = false) => {
     setError(null);
     if (!authToken) {
       navigate('/admin/login', { replace: true });
@@ -300,28 +397,31 @@ export function AdminDashboardPage() {
     else setLoadingRefresh(true);
 
     try {
+      const ordersUrl = `${BASE_URL}/api/admin/orders`; 
+      const productsUrl = `${BASE_URL}/api/products`;
+      
       const [ordersResponse, productsResponse] = await Promise.all([
-        fetch(`${BASE_URL}/api/admin/orders`, { headers: { 'x-auth-token': authToken } }),
-        fetch(`${BASE_URL}/api/products`)
+        fetch(ordersUrl, { headers: { 'x-auth-token': authToken } }),
+        fetch(productsUrl)
       ]);
 
       if (ordersResponse.status === 401) {
         throw new Error("Session expired. Token invalid. Please login again.");
       }
-
-      if (!ordersResponse.ok && ordersResponse.status !== 401) {
-         throw new Error(`Failed to fetch orders. Status: ${ordersResponse.status}`);
+      
+      if (!ordersResponse.ok) {
+         throw new Error(`Failed to fetch orders. Status: ${ordersResponse.status} from URL: ${ordersUrl}`);
       }
       if (!productsResponse.ok) {
         throw new Error(`Failed to fetch products. Status: ${productsResponse.status}`);
       }
-
+      
       const ordersText = await ordersResponse.text();
       if (!ordersText.trim() || ordersText.trim().startsWith('<')) {
         throw new Error("Network/Session Error. Unexpected empty/HTML response instead of JSON. (Backend not running or down)");
       }
+      
       const parsedOrders = JSON.parse(ordersText) as any[];
-
       const productsData = await productsResponse.json();
 
       const safeOrders: Order[] = parsedOrders.map((o: any) => ({
@@ -330,7 +430,7 @@ export function AdminDashboardPage() {
         total_amount: o.total_amount ?? 0,
         status: o.status,
         created_at: o.created_at
-          ? (typeof o.created_at === 'string' ? o.created_at : o.created_at)
+          ? (typeof o.created_at === 'string' ? o.created_at : o.created_at) 
           : new Date().toISOString(),
         user_details: {
           name: o.user_details?.name ?? 'Unknown',
@@ -366,16 +466,13 @@ export function AdminDashboardPage() {
       if (isInitial) setLoadingInitial(false);
       else setLoadingRefresh(false);
     }
-  };
+  }, [authToken, navigate]);
 
   useEffect(() => {
-    // Initial data load
     fetchAdminData(true);
-
-    // Interval refresh
     const intervalId = setInterval(() => fetchAdminData(false), 10000);
     return () => clearInterval(intervalId);
-  }, [authToken, navigate]);
+  }, [fetchAdminData]);
 
   const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
     if (!authToken) return;
@@ -387,12 +484,12 @@ export function AdminDashboardPage() {
         body: JSON.stringify({ status: newStatus })
       });
       if (!resp.ok) {
-        throw new Error('Failed to update status.');
+        throw new Error('Failed to update status on server.');
       }
     } catch (err) {
       console.error('Update error:', err);
-      alert('Network error during status update! Reverting.');
-      fetchAdminData();
+      alert('Network error during status update or server failed! Reverting data.');
+      fetchAdminData(false);
     }
   };
 
@@ -401,22 +498,23 @@ export function AdminDashboardPage() {
     if (!window.confirm(`Are you sure you want to delete Order ID ${orderId}?`)) {
       return;
     }
-    setOrders(prev => prev.filter(o => o.id !== orderId)); // Optimistic delete
+    setOrders(prev => prev.filter(o => o.id !== orderId)); 
     try {
       const resp = await fetch(`${BASE_URL}/api/admin/orders/${orderId}`, {
         method: 'DELETE',
         headers: { 'x-auth-token': authToken }
       });
       if (!resp.ok) {
-        throw new Error('Failed to delete order.');
+        throw new Error('Failed to delete order on server.');
       }
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Network error during delete! Reverting.');
-      fetchAdminData(); // Revert back
+      alert('Network error during delete! Reverting data.');
+      fetchAdminData(false); 
     }
   };
 
+  // --- AI Logic (Unchanged) ---
   const handleAIChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!aiQuery.trim()) return;
@@ -437,7 +535,6 @@ export function AdminDashboardPage() {
 
       if (!response.ok) {
         const serverMessage = result.message || `Server responded with status code ${response.status}.`;
-
         if (response.status === 401 || response.status === 403) {
            setAiResponse(`🚨 Error ${response.status}: Login/Admin access required. Please log in again.`);
         } else if (response.status === 503) {
@@ -445,7 +542,6 @@ export function AdminDashboardPage() {
         } else {
            setAiResponse(`❌ Error ${response.status}: Command failed. Backend message: ${serverMessage}`);
         }
-
         throw new Error(serverMessage);
       }
 
@@ -464,7 +560,6 @@ export function AdminDashboardPage() {
     }
   };
 
-  // 🧠 Trigger backend AI analysis of frontend (calls backend analyze route)
   const handleAnalyze = async () => {
     setAiResponse('🧠 Requesting frontend analysis...');
     setLoadingRefresh(true);
@@ -479,7 +574,6 @@ export function AdminDashboardPage() {
         setAiResponse(`❌ Analyze failed: ${data.message || res.status}`);
         return;
       }
-      // Pretty output for UI
       if (data.analysis) setAiResponse(String(data.analysis).trim());
       else setAiResponse(JSON.stringify(data, null, 2));
     } catch (err: any) {
@@ -527,7 +621,6 @@ export function AdminDashboardPage() {
     }
   };
 
-  // Upload image and ask backend to run AI command (single-step)
   const handleImageCommand = async () => {
     if (!authToken) return alert('Not authorized.');
     if (!imageFile) return alert('Please choose an image first.');
@@ -537,7 +630,7 @@ export function AdminDashboardPage() {
     setLoadingRefresh(true);
     try {
       const formData = new FormData();
-      formData.append('image', imageFile);
+      formData.append('image', imageFile); 
       formData.append('command', aiQuery);
 
       const res = await fetch(`${BASE_URL}/api/admin/ai-image`, {
@@ -565,6 +658,7 @@ export function AdminDashboardPage() {
   useEffect(() => {
     loadFiles();
   }, []);
+  // --- END Data Fetching & CRUD ---
 
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
   const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
@@ -578,11 +672,30 @@ export function AdminDashboardPage() {
     localStorage.clear();
     navigate('/admin/login', { replace: true });
   };
+  
+  // Custom scroll handler for NavItems
+  const scrollToSection = (key: string) => {
+      let ref;
+      if (key === 'ai') ref = aiRef;
+      else if (key === 'orders') ref = ordersRef;
+      else if (key === 'editor') ref = editorRef;
+      else return; 
+      
+      setIsSidebarOpen(false); 
+
+      if (ref && ref.current) {
+          // Add a small offset to account for the sticky header
+          const yOffset = -80; 
+          const y = ref.current.getBoundingClientRect().top + window.scrollY + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+  };
+
 
   if (showFullPageLoader) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-        <Loader className="w-12 h-12 animate-spin text-indigo-400" />
+      <div className={`min-h-screen flex items-center justify-center ${themeClasses.bg} ${themeClasses.text}`}>
+        <Loader className="w-12 h-12 animate-spin text-blue-500 dark:text-cyan-500" />
         <p className="ml-4 text-xl">Loading Admin Data...</p>
       </div>
     );
@@ -590,298 +703,415 @@ export function AdminDashboardPage() {
 
   if (error && orders.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
+      <div className={`min-h-screen flex flex-col items-center justify-center ${themeClasses.bg} ${themeClasses.text} p-6`}>
         <XCircle className="w-16 h-16 text-red-500 mb-4 animate-pulse" />
-        <h1 className="text-3xl font-bold text-red-400">DATA LOAD FAILED</h1>
-        <p className="text-lg text-gray-400 mt-2 p-3 bg-neutral-800 rounded text-center max-w-lg">
+        <h1 className="text-3xl font-bold text-red-500">DATA LOAD FAILED</h1>
+        <p className={`text-lg ${themeClasses.subText} mt-2 p-3 ${themeClasses.cardBg} rounded text-center max-w-lg border border-red-500/50 shadow-xl`}>
             {error}
             <br />
-            <span className='text-sm text-yellow-300'>Backend URL aur Firebase/DB Connection check karein.</span>
+            <span className='text-sm text-yellow-500'>Backend URL aur Firebase/DB Connection check karein.</span>
         </p>
-        <button onClick={() => { setLoadingInitial(true); fetchAdminData(true); }} className="mt-6 bg-indigo-600 p-2 px-4 rounded-lg hover:bg-indigo-700 transition">Try Again</button>
-        <button onClick={handleLogout} className="mt-4 bg-neutral-700 p-2 px-4 rounded-lg hover:bg-neutral-600 transition">Logout</button>
+        <button onClick={() => { setLoadingInitial(true); fetchAdminData(true); }} className={`mt-6 ${isDark ? themeClasses.primary : 'bg-blue-600 hover:bg-blue-700'} p-3 px-6 rounded-xl transition shadow-lg text-white`}>Try Again</button>
+        <button onClick={handleLogout} className={`mt-4 bg-gray-500 hover:bg-gray-600 p-3 px-6 rounded-xl transition text-white`}>Logout</button>
       </div>
     );
   }
 
+  // Common button styling for icon-only buttons
+  const iconButtonClasses = `p-3 rounded-xl transition duration-300 flex items-center justify-center`;
+  
+  // Navigation items for the sidebar (Admin Panel is main page)
+  const navItems = [
+      { icon: LayoutDashboard, label: "Admin Dashboard", key: "dashboard", onClick: () => scrollToSection('dashboard-start') }, // Scroll to the very top
+      { icon: Package, label: "Orders Queue", key: "orders", onClick: () => scrollToSection('orders') },
+      { icon: ListPlus, label: "Manage Products", key: "products", onClick: () => navigate('/admin/products') },
+      { icon: Settings, label: "Files/Code Editor", key: "editor", onClick: () => scrollToSection('editor') },
+      { icon: Cpu, label: "AI Console", key: "ai", onClick: () => scrollToSection('ai') },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#1e202e] text-gray-100 font-sans">
-      <NeonStyle />
-
-      <header className="py-4 px-6 md:px-10 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <BrainCircuit className="text-indigo-400" />
-          BASIT CMD Dashboard
-        </h1>
-        <div className="flex gap-3">
-            <button
-                onClick={() => fetchAdminData(false)}
-                disabled={loadingRefresh}
-                className={`bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2 text-sm ${loadingRefresh ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-                {loadingRefresh ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Refresh Data
-            </button>
-          <button
-            onClick={() => navigate('/admin/products')}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2 text-sm"
-          >
-            <Settings className="w-4 h-4" /> Manage Products
-          </button>
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition duration-300 flex items-center gap-2 text-sm"
-          >
-            <LogOut className="w-4 h-4" /> Log Out
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-
-        {/* AI Command Interface */}
-        <div className="bg-[#2c2f48] p-6 rounded-xl border border-indigo-500/30 shadow-lg neon-card">
-          <h3 className='text-lg font-semibold text-white mb-4 flex items-center'>
-            <BrainCircuit className="w-5 h-5 mr-2 text-indigo-400" />
-            AI Command Console
-          </h3>
-          <form onSubmit={handleAIChatSubmit} className='flex flex-col sm:flex-row gap-3'>
-            <input
-              type="text"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              placeholder="Command type karein (e.g., 'Order 10 ko Delivered...')"
-              className="flex-grow p-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white focus:border-indigo-500 focus:ring-indigo-500 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={loadingRefresh}
-              className='bg-indigo-600 p-3 rounded-lg hover:bg-indigo-500 transition flex justify-center items-center font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed gap-2 px-4'
-            >
-              {loadingRefresh && aiResponse && aiResponse.includes('Processing Command') ? <Loader className="w-5 h-5 animate-spin" /> : <ArrowRight className='w-5 h-5' />}
-              Execute Command
-            </button>
-            <button
-              type="button"
-              onClick={handleAnalyze}
-              className='bg-emerald-600 p-3 rounded-lg hover:bg-emerald-500 transition font-medium text-white px-4'
-            >
-              Analyze Frontend
-            </button>
-            <button
-              type="button"
-              onClick={() => { setAiQuery(''); setAiResponse(null); }}
-              className='bg-neutral-700 p-3 rounded-lg hover:bg-neutral-600 transition font-medium text-gray-300 px-4'
-            >
-              Clear
-            </button>
-          </form>
-
-          {aiResponse && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={`mt-4 p-3 text-sm rounded-lg border ${
-                aiResponse.includes('Error') || aiResponse.includes('FATAL') || aiResponse.includes('503') || aiResponse.includes('401')
-                  ? 'bg-red-900/50 border-red-700 text-red-300'
-                  : 'bg-green-900/50 border-green-700 text-green-300'
-              }`}
-            >
-              <pre className="whitespace-pre-wrap font-sans">{aiResponse}</pre>
-            </motion.div>
-          )}
-        </div>
-
-        {/* ============ AI IMAGE ASSISTANT ============ */}
-        <div className="bg-[#2c2f48] p-6 rounded-xl border border-green-500/30 shadow-lg neon-card mt-6">
-          <h3 className='text-lg font-semibold text-white mb-4 flex items-center'>
-            <BrainCircuit className="w-5 h-5 mr-2 text-green-400" />
-            AI Image Assistant
-          </h3>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              id="aiImageInput"
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="p-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white text-sm cursor-pointer"
-            />
-            <input
-              type="text"
-              value={aiQuery}
-              onChange={(e) => setAiQuery(e.target.value)}
-              placeholder="e.g., ‘Add this image to new product Red Hoodie’"
-              className="flex-grow p-3 bg-neutral-800/50 border border-neutral-700 rounded-lg text-white text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleImageCommand}
-              disabled={loadingRefresh}
-              className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded"
-            >
-              Upload & Execute
-            </button>
+    <div className={`min-h-screen flex ${themeClasses.bg} ${themeClasses.text} font-sans`}>
+      
+      {/* --- Sidebar (Desktop/Tablet) --- */}
+      <div className={`hidden md:block w-64 ${themeClasses.sidebarBg} border-r ${themeClasses.cardBorder} p-5 sticky top-0 h-screen transition-all duration-300`}>
+          <div className={`flex items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
+              <span className={`text-3xl font-extrabold ${themeClasses.primaryText} `}>AP</span>
+              <span className={`text-xl font-semibold ml-2 ${themeClasses.text}`}>Admin Panel</span>
           </div>
 
-          {aiResponse && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={`mt-4 p-3 text-sm rounded-lg border ${
-                aiResponse.includes('Error') || aiResponse.includes('Network') || aiResponse.includes('❌')
-                  ? 'bg-red-900/50 border-red-700 text-red-300'
-                  : 'bg-green-900/50 border-green-700 text-green-300'
-              }`}
-            >
-              <pre className="whitespace-pre-wrap font-sans">{aiResponse}</pre>
-            </motion.div>
-          )}
-        </div>
-
-        {/* ============ FILE EXPLORER ============ */}
-        <div className="bg-[#2c2f48] p-6 rounded-xl border border-cyan-500/30 shadow-lg mt-6">
-          <h2 className="text-lg font-semibold mb-3 text-white">📂 Frontend Files</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {files.map((f, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => openFile(f.path)}
-                  className="cursor-pointer hover:bg-neutral-800 p-2 rounded text-sm text-gray-300"
-                >
-                  {f.name}
-                </div>
+          <nav className="space-y-2">
+              {navItems.map(item => (
+                  <NavItem
+                      key={item.key}
+                      icon={item.icon}
+                      label={item.label}
+                      isActive={item.key === 'dashboard'} // Keeping dashboard as active for this page
+                      onClick={item.onClick} 
+                      isDarkTheme={isDark}
+                  />
               ))}
-            </div>
+          </nav>
 
-            {selectedFile && (
-              <div>
-                <h3 className="font-semibold mb-2 text-white">{selectedFile.name}</h3>
-                <textarea
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                  className="w-full h-64 bg-neutral-900 border border-neutral-700 rounded p-2 text-sm text-green-400 font-mono"
-                />
-                <button
-                  onClick={saveFile}
-                  className="mt-3 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white"
-                >
-                  Save File
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* KEY METRICS */}
-        <div className="bg-[#2c2f48] p-6 rounded-xl border border-indigo-500/30 shadow-lg neon-card">
-          <h3 className='text-lg font-semibold text-white mb-4'>System Overview</h3>
-          <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-            initial="hidden"
-            animate="visible"
-            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-          >
-            {[
-              { title: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, subtext: 'Delivered Total' },
-              { title: 'New Orders', value: pendingOrdersCount, icon: Package, subtext: 'Pending / Processing' },
-              { title: 'Total Products', value: totalProducts, icon: ShoppingCart, subtext: 'Items in Stock' },
-              { title: 'Total Users', value: totalUsers, icon: Users, subtext: 'Total Users' },
-            ].map(metric => (
-              <motion.div
-                key={metric.title}
-                className="bg-neutral-800/60 p-5 rounded-xl border border-white/10"
-                initial={{ opacity: 0, y: 20 }}
-                variants={{ visible: { opacity: 1, y: 0 } }}
+          <div className="mt-auto absolute bottom-5 left-5 right-5">
+              <button
+                  onClick={handleLogout}
+                  className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
               >
-                <metric.icon className="w-7 h-7 text-gray-400 mb-3" />
-                <p className="text-sm font-medium text-gray-300">{metric.title}</p>
-                <p className="text-3xl font-extrabold text-white mt-1">{metric.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{metric.subtext}</p>
+                  <LogOut className="w-5 h-5 mr-3" />
+                  <span className="font-medium text-sm">Log Out</span>
+              </button>
+          </div>
+      </div>
+      
+      {/* --- Mobile Sidebar Overlay --- */}
+      <AnimatePresence>
+          {isSidebarOpen && (
+              <motion.div
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ type: "tween", duration: 0.2 }}
+                  className={`fixed inset-y-0 left-0 w-64 z-50 md:hidden ${themeClasses.sidebarBg} p-5 border-r ${themeClasses.cardBorder}`}
+              >
+                  <div className={`flex justify-between items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
+                      <span className={`text-3xl font-extrabold ${themeClasses.primaryText}`}>AP</span>
+                      <button onClick={() => setIsSidebarOpen(false)} className={`${themeClasses.text} p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50`}>
+                          <X className="w-6 h-6" />
+                      </button>
+                  </div>
+                  <nav className="space-y-2">
+                      {navItems.map(item => (
+                          <NavItem
+                              key={item.key}
+                              icon={item.icon}
+                              label={item.label}
+                              isActive={item.key === 'dashboard'}
+                              onClick={() => { item.onClick(); setIsSidebarOpen(false); }}
+                              isDarkTheme={isDark}
+                          />
+                      ))}
+                  </nav>
+                  <div className="mt-10">
+                    <button
+                        onClick={handleLogout}
+                        className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
+                    >
+                        <LogOut className="w-5 h-5 mr-3" />
+                        <span className="font-medium text-sm">Log Out</span>
+                    </button>
+                  </div>
+              </motion.div>
+          )}
+      </AnimatePresence>
+      
+      {/* --- Main Content Area --- */}
+      <div className="flex-1 overflow-x-hidden">
+
+        {/* --- Top Header / Search Bar (FIXED POSITION) --- */}
+        <header className={`sticky top-0 z-40 p-4 md:p-6 flex justify-between items-center ${themeClasses.headerBg} border-b ${themeClasses.cardBorder} shadow-lg shadow-black/10`}>
+            
+            {/* Mobile Menu & Dashboard Title */}
+            <div className='flex items-center'>
+                <button onClick={() => setIsSidebarOpen(true)} className={`md:hidden p-2 rounded-lg ${themeClasses.text} hover:bg-gray-100 dark:hover:bg-gray-700/50 mr-3`}>
+                    <Menu className="w-6 h-6" />
+                </button>
+                <h1 className={`text-xl md:text-2xl font-bold ${themeClasses.text}`}>Admin Dashboard</h1>
+            </div>
+            
+            {/* Search and User Profile */}
+            <div className="flex items-center space-x-4">
+                <div className={`relative hidden sm:block w-64`}>
+                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${themeClasses.subText}`} />
+                    <input
+                        type="text"
+                        placeholder="Search Dashboard..."
+                        className={`w-full p-2 pl-10 rounded-xl text-sm ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-1 focus:ring-blue-500 dark:focus:ring-cyan-500 transition`}
+                    />
+                </div>
+                
+                {/* Icon Buttons (Theme Toggle & Refresh) */}
+                <div className="flex space-x-2">
+                    {/* Dark/Light Mode Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className={`${iconButtonClasses} ${themeClasses.cardBg} ${themeClasses.text} shadow-md border ${themeClasses.cardBorder}`}
+                        title={isDark ? "Light Mode" : "Dark Mode"}
+                    >
+                        {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-500" />}
+                    </button>
+
+                    {/* Refresh Button */}
+                    <button
+                        onClick={() => fetchAdminData(false)}
+                        disabled={loadingRefresh}
+                        className={`${iconButtonClasses} bg-gray-200 hover:bg-gray-300 text-gray-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:text-white ${loadingRefresh ? 'opacity-50 cursor-not-allowed' : ''} shadow-md`}
+                        title="Refresh Data"
+                    >
+                        {loadingRefresh ? <Loader className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
+                    </button>
+                </div>
+                
+                {/* User Info (Desktop only - Barbershop Style) */}
+                <div className={`hidden lg:flex items-center space-x-2 border-l ${themeClasses.cardBorder} pl-4`}>
+                    <div className={`w-10 h-10 rounded-full bg-blue-100 dark:bg-indigo-500 flex items-center justify-center text-blue-600 dark:text-white font-bold text-sm`}>A</div>
+                    <div className='text-right'>
+                        <p className={`text-sm font-semibold ${themeClasses.text}`}>Admin User</p>
+                        <p className={`text-xs ${themeClasses.subText}`}>admin@example.com</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        {/* --- Main Dashboard Content (Reference for scrolling) --- */}
+        <main className="p-4 md:p-6 lg:p-8 space-y-8" id="dashboard-start">
+
+          {/* KEY METRICS (Light Mode: Clean Cards, Dark Mode: Colored Cards) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {[
+              { title: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, subtext: 'Delivered Total', color: 'text-green-500', iconBg: 'bg-green-100 dark:bg-black/20', darkBg: themeClasses.metricBg1 },
+              { title: 'New Orders', value: pendingOrdersCount, icon: Package, subtext: 'Pending / Processing', color: 'text-indigo-500', iconBg: 'bg-indigo-100 dark:bg-black/20', darkBg: themeClasses.metricBg2 },
+              { title: 'Total Products', value: totalProducts, icon: ShoppingCart, subtext: 'Items in Stock', color: 'text-orange-500', iconBg: 'bg-orange-100 dark:bg-black/20', darkBg: themeClasses.metricBg3 },
+              { title: 'Total Users', value: totalUsers, icon: Users, subtext: 'Unique Customers', color: 'text-pink-500', iconBg: 'bg-pink-100 dark:bg-black/20', darkBg: themeClasses.metricBg4 },
+            ].map((metric, index) => (
+              <motion.div
+                key={index}
+                // Light Mode: Clean White Card, Dark Mode: Colored Card
+                className={`p-5 rounded-xl ${isDark ? metric.darkBg : themeClasses.cardBg} shadow-lg ${themeClasses.cardBorder} border transition-all duration-300`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div className="flex justify-between items-center">
+                    <p className={`text-sm font-medium ${isDark ? 'text-white/80' : themeClasses.subText}`}>{metric.title}</p>
+                    <div className={`p-2 rounded-full ${metric.iconBg}`}>
+                        <metric.icon className={`w-6 h-6 ${isDark ? 'text-white' : metric.color}`} />
+                    </div>
+                </div>
+                <p className={`text-3xl font-extrabold mt-2 ${isDark ? 'text-white' : metric.color}`}>{metric.value}</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/70' : themeClasses.subText}`}>{metric.subtext}</p>
               </motion.div>
             ))}
-          </motion.div>
-        </div>
+          </div>
+          
+          <hr className={`border-t ${themeClasses.cardBorder}`} />
 
-        {/* ORDERS MANAGEMENT TABLE */}
-        <div className="bg-[#2c2f48] p-6 rounded-xl border border-indigo-500/30 shadow-lg neon-card">
-          <h3 className='text-lg font-semibold text-white mb-4'>Order Queue ({orders.length} Total)</h3>
+          {/* AI COMMAND INTERFACE (Increased Height/Width & Image Preview) */}
+          <div ref={aiRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
+            <h3 className={`text-2xl font-bold ${themeClasses.text} mb-5 flex items-center`}>
+              <Cpu className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
+              AI Command & Image Assistant
+            </h3>
 
-          {loadingRefresh && (
-            <div className='py-2 flex justify-center items-center gap-2 bg-neutral-800/30 rounded-t-lg'>
-              <Loader className="w-5 h-5 animate-spin text-indigo-400" />
-              <span className='text-gray-400 text-sm'>Refreshing data...</span>
+            {/* AI Console Input Area (Increased Height/Width) */}
+            <form onSubmit={handleAIChatSubmit}>
+              <div className="flex flex-col sm:flex-row gap-4 mb-4 items-stretch">
+                
+                {/* Image Upload Button (With File Name Preview) */}
+                <div className="flex-none w-full sm:w-auto">
+                    <input
+                        id="aiImageInput"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className={`hidden`} 
+                    />
+                    <label 
+                        htmlFor="aiImageInput" 
+                        // Barbershop style yellow button
+                        className={`cursor-pointer ${themeClasses.warning} font-semibold p-3 rounded-xl flex items-center gap-2 text-sm shadow-lg w-full justify-center`}
+                    >
+                        <ImagePlus className="w-5 h-5 text-yellow-900 dark:text-white" />
+                        {imageFile ? imageFile.name.substring(0, 20) + (imageFile.name.length > 20 ? '...' : '') : 'Select Image'}
+                    </label>
+                </div>
+                
+                {/* Command Input Field */}
+                <textarea
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  placeholder={imageFile ? "Image-related command or general query..." : "AI Command type karein (e.g., 'Order 10 ko Delivered...')" }
+                  className={`flex-grow p-4 rounded-xl text-base shadow-inner ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500`}
+                  style={{ minHeight: '120px', resize: 'vertical' }} // Increased height
+                />
+                
+                {/* Execute Button */}
+                <button
+                    type="submit"
+                    disabled={loadingRefresh}
+                    onClick={imageFile ? handleImageCommand : handleAIChatSubmit}
+                    className={`${themeClasses.primary} text-white p-4 rounded-xl flex justify-center items-center font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed gap-2 px-6 shadow-lg w-full sm:w-auto`}
+                >
+                  {loadingRefresh && aiResponse && aiResponse.includes('Processing') ? <Loader className="w-5 h-5 animate-spin" /> : <Send className='w-5 h-5' />}
+                  Execute AI
+                </button>
+              </div>
+            </form>
+            
+            <div className='flex gap-4 mt-3'>
+                <button
+                  type="button"
+                  onClick={handleAnalyze}
+                  className={`bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl transition font-medium text-sm px-4 shadow-lg`}
+                >
+                  Analyze Frontend
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAiQuery(''); setAiResponse(null); setImageFile(null); }}
+                  className={`bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl transition font-medium text-sm px-4`}
+                >
+                  Clear Console
+                </button>
             </div>
-          )}
 
-          <div className="overflow-x-auto rounded-lg border border-neutral-700/50">
-            <table className="min-w-full">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-neutral-800/50">
-                  <th className="p-4">Order ID</th>
-                  <th className="p-4">Customer</th>
-                  <th className="p-4">Total</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4">Details</th>
-                  <th className="p-4">Delete</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-800/50">
-                {orders.map(order => (
-                  <tr key={order.id} className="hover:bg-neutral-800/40 transition-colors duration-200">
-                    <td className="p-4 text-sm font-medium text-indigo-300 font-mono">
-                        {order.order_number || order.id}
-                    </td>
-                    <td className="p-4 text-sm"><p className="font-semibold text-white">{order.user_details.name || 'N/A'}</p></td>
-                    <td className="p-4 text-sm font-bold text-green-400">${(order.total_amount || 0).toFixed(2)}</td>
-                    <td className="p-4"><StatusBadge status={order.status} /></td>
-                    <td className="p-4 text-sm">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className='bg-indigo-600 text-white py-1.5 px-4 rounded-lg hover:bg-indigo-500 transition text-xs font-bold'
-                      >
-                        Details
-                      </button>
-                    </td>
-                    <td className="p-4 text-sm">
-                      <button
-                        onClick={() => handleDeleteOrder(order.id)}
-                        className='bg-red-600 text-white p-2 rounded-lg hover:bg-red-500 transition text-xs font-bold'
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+            {aiResponse && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`mt-4 p-4 text-sm rounded-xl border ${
+                  aiResponse.includes('Error') || aiResponse.includes('FATAL') || aiResponse.includes('❌')
+                    ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300'
+                    : 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-700 dark:text-green-300'
+                }`}
+              >
+                <pre className="whitespace-pre-wrap font-mono min-h-[120px]">{aiResponse}</pre> 
+              </motion.div>
+            )}
+          </div>
+          
+          {/* ORDERS MANAGEMENT TABLE */}
+          <div ref={ordersRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
+            <h3 className={`text-2xl font-bold ${themeClasses.text} mb-5 flex items-center`}>
+              <Package className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
+              Recent Orders Queue ({orders.length} Total)
+            </h3>
+
+            {loadingRefresh && (
+              <div className={`py-3 flex justify-center items-center gap-2 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-lg border-b border-indigo-500`}>
+                <Loader className="w-5 h-5 animate-spin text-indigo-500" />
+                <span className={themeClasses.subText}>Refreshing data...</span>
+              </div>
+            )}
+
+            <div className="overflow-x-auto rounded-lg border border-gray-500/20 shadow-inner">
+              <table className="min-w-full">
+                <thead>
+                  <tr className={`text-left text-xs font-semibold uppercase tracking-wider ${themeClasses.subText} ${themeClasses.tableHeaderBg}`}>
+                    <th className="p-4 w-[15%]">Order ID</th>
+                    <th className="p-4 w-[25%]">Customer</th>
+                    <th className="p-4 w-[15%]">Total</th>
+                    <th className="p-4 w-[15%]">Status</th>
+                    <th className="p-4 w-[15%] text-center">Details</th>
+                    <th className="p-4 w-[15%] text-center">Delete</th>
                   </tr>
+                </thead>
+                <tbody className={`divide-y ${themeClasses.cardBorder}`}>
+                  {orders.length > 0 ? orders.map(order => (
+                    <tr key={order.id} className={themeClasses.tableRowHover}>
+                      <td className={`p-4 text-sm font-medium ${themeClasses.text} font-mono`}>
+                          {order.order_number || order.id.substring(0, 8)}...
+                      </td>
+                      <td className={`p-4 text-sm`}><p className={`font-semibold ${themeClasses.text}`}>{order.user_details.name || 'N/A'}</p></td>
+                      <td className="p-4 text-sm font-bold text-green-500">${(order.total_amount || 0).toFixed(2)}</td>
+                      <td className="p-4"><StatusBadge status={order.status} /></td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className='bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 dark:bg-cyan-500 dark:hover:bg-cyan-600 transition text-sm font-bold shadow-md'
+                          title="View Details"
+                        >
+                          <Search className="w-4 h-4" />
+                        </button>
+                      </td>
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className='bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition text-sm font-bold shadow-md'
+                          title="Delete Order"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={6} className={`py-10 text-center ${themeClasses.subText}`}>
+                        <p className='text-lg font-semibold'>No orders yet.</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <AnimatePresence>
+              {selectedOrder && (
+                <OrderDetailsModal
+                  order={selectedOrder}
+                  onClose={() => setSelectedOrder(null)}
+                  onStatusChange={handleStatusUpdate}
+                  theme={theme}
+                />
+              )}
+            </AnimatePresence>
+
+          </div>
+          
+          {/* FILE EXPLORER (Code Editor) */}
+          <div ref={editorRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
+            <h2 className={`text-2xl font-bold mb-5 ${themeClasses.text} flex items-center`}>
+              <FileText className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
+              Frontend Files (Code Editor)
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* File List */}
+              <div className={`space-y-2 max-h-96 overflow-y-auto p-3 rounded-xl border border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-700/30 lg:col-span-1`}>
+                <h4 className={`text-lg font-semibold mb-2 ${themeClasses.text}`}>Project Files</h4>
+                {files.length === 0 && (
+                    <p className={`${themeClasses.subText} italic p-3`}>No files loaded.</p>
+                )}
+                {files.map((f, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => openFile(f.path)}
+                    className={`cursor-pointer p-2 rounded text-sm transition-all duration-150 border-l-4 ${selectedFile && selectedFile.path === f.path 
+                        ? 'bg-blue-100 border-blue-500 font-semibold text-blue-700 dark:bg-cyan-500/20 dark:border-cyan-500 dark:text-cyan-400' 
+                        : 'text-gray-700 hover:bg-gray-200/50 border-transparent dark:text-gray-400 dark:hover:bg-gray-700/50'}`}
+                  >
+                    {f.name}
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Code Editor */}
+              {selectedFile && (
+                <div className="space-y-4 lg:col-span-2">
+                  <h3 className={`font-bold text-xl ${themeClasses.text} truncate`}>{selectedFile.name}</h3>
+                  <textarea
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value)}
+                    rows={15}
+                    // Dark background for code editor in both themes for better contrast
+                    className={`w-full h-auto min-h-[400px] rounded p-4 text-sm font-mono shadow-inner resize-y bg-gray-900 border border-blue-500/50 text-yellow-100 dark:border-cyan-700/50 dark:text-yellow-300`} 
+                  />
+                  <button
+                    onClick={saveFile}
+                    className={`bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 px-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all duration-300`}
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {!loadingInitial && orders.length === 0 && !error && (
-            <div className='py-10 px-8 bg-neutral-800/30 text-center rounded-b-lg border border-neutral-700/50 mt-[-1px]'>
-              <Inbox className="w-10 h-10 mx-auto text-indigo-400 mb-3" />
-              <p className='text-lg font-semibold text-white'>No orders yet.</p>
-              <p className='text-gray-400 text-sm'>Waiting for new orders.</p>
-            </div>
-          )}
-
-          <AnimatePresence>
-            {selectedOrder && (
-              <OrderDetailsModal
-                order={selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                onStatusChange={handleStatusUpdate}
-              />
-            )}
-          </AnimatePresence>
-
-        </div>
-
-      </main>
-
+        </main>
+        
+        {/* Spacer for mobile bottom */}
+        <div className='h-4 md:h-8'></div>
+      </div>
     </div>
   );
 }
 
 export default AdminDashboardPage;
-
