@@ -1,0 +1,388 @@
+// Path: /src/pages/AdminDashboardPage.tsx
+// --- FINAL FIXED VERSION: Missing Loader Import Solved & Full Features ---
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DollarSign, Package, Users, Loader, Zap, ShoppingCart, User, Mail, Phone, MapPin, Info, Send, XCircle, LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+// Backend API URL
+const BASE_URL = 'http://127.0.0.1:3000';
+
+// --- Interfaces for Backend Data ---
+interface UserDetails {
+    name: string;
+    email: string;
+}
+
+interface Order {
+    id: number;
+    order_number: string;
+    total_amount: number;
+    status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+    created_at: string;
+    user_details: UserDetails;
+    items: { product_id: number; quantity: number; name: string; price: number; }[];
+    shipping_details: { address: string; contact: string; whatsapp?: string; note?: string; };
+    payment_method: string;
+}
+
+// Order Status Options
+const STATUS_OPTIONS = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+
+// ==================================================================
+// --- Utility Components (StatusBadge and OrderDetailsModal) ---
+// ==================================================================
+
+const StatusBadge: React.FC<{ status: Order['status'] }> = ({ status }) => {
+    const statusClasses = {
+        'Pending': 'bg-yellow-800 text-yellow-300 border-yellow-700',
+        'Processing': 'bg-blue-800 text-blue-300 border-blue-700',
+        'Shipped': 'bg-green-800 text-green-300 border-green-700',
+        'Delivered': 'bg-cyan-800 text-cyan-300 border-cyan-700',
+        'Cancelled': 'bg-red-800 text-red-300 border-red-700',
+    };
+    return (<span className={`px-3 py-1 text-xs font-semibold rounded-full border ${statusClasses[status]}`}>{status}</span>);
+};
+
+const OrderDetailsModal: React.FC<{ order: Order, onClose: () => void, onStatusChange: (orderId: number, status: Order['status']) => void }> = ({ order, onClose, onStatusChange }) => {
+    const shipDetails = order.shipping_details;
+    const date = new Date(order.created_at).toLocaleString();
+    const orderItemsTotal = order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 p-6 rounded-lg w-full max-w-2xl border border-cyan-600 shadow-2xl relative">
+                <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white"><XCircle className="w-6 h-6" /></button>
+                <h3 className="text-2xl font-bold text-cyan-400 mb-4 border-b border-purple-700 pb-2 flex items-center">
+                    <Info className="w-6 h-6 mr-2" /> Order Details: {order.order_number}
+                </h3>
+                
+                <div className="space-y-4 text-sm max-h-[70vh] overflow-y-auto pr-2">
+                    
+                    {/* Status & Payment */}
+                    <div className="grid grid-cols-2 gap-4 bg-gray-800 p-4 rounded-md border border-gray-700">
+                        <div><h4 className="font-semibold text-purple-400 mb-1">Current Status</h4><StatusBadge status={order.status} /></div>
+                        <div><h4 className="font-semibold text-purple-400 mb-1">Payment Method</h4><p className='text-gray-300 text-xs'>{order.payment_method}</p></div>
+                    </div>
+                    
+                    {/* Customer & Contact Details */}
+                    <div className="bg-gray-800 p-4 rounded-md border border-gray-700">
+                        <h4 className="font-semibold text-purple-400 flex items-center mb-2"><User className="w-4 h-4 mr-2" /> Customer Information</h4>
+                        <p><span className="text-gray-400">Name:</span> <span className="text-white">{order.user_details.name}</span></p>
+                        <p className="flex items-center"><Mail className="w-3 h-3 mr-1 text-gray-500" /> <span className="text-gray-400">Email:</span> <span className="text-white">{order.user_details.email}</span></p>
+                    </div>
+
+                    {/* Shipping & Note */}
+                    <div className="bg-gray-800 p-4 rounded-md border border-gray-700">
+                        <h4 className="font-semibold text-purple-400 flex items-center mb-2"><MapPin className="w-4 h-4 mr-2" /> Shipping Address & Note</h4>
+                        <p className="text-white font-medium">Address: {shipDetails.address}</p>
+                        <p className="text-white font-medium">Contact: {shipDetails.contact}</p>
+                        <p className="text-gray-500 mt-2">Note: {shipDetails.note || 'None'}</p>
+                    </div>
+
+                    {/* Order Items List */}
+                    <div className="bg-gray-800 p-4 rounded-md border border-gray-700">
+                        <h4 className="font-semibold text-purple-400 flex items-center mb-2"><ShoppingCart className="w-4 h-4 mr-2" /> Ordered Items ({order.items.length})</h4>
+                        {order.items.map((item, index) => (
+                            <p key={index} className="text-gray-300 ml-6">- {item.name} (x{item.quantity}) @ <span className='text-green-400'>${item.price.toFixed(2)}</span></p>
+                        ))}
+                        <p className='text-right text-gray-400 border-t border-gray-700 pt-2 mt-2'>Subtotal: ${orderItemsTotal.toFixed(2)}</p>
+                    </div>
+
+                    {/* Final Total */}
+                    <div className="bg-gray-800 p-4 rounded-md border border-gray-700 flex justify-between items-center">
+                        <p className="text-xl font-bold text-cyan-400">GRAND TOTAL:</p>
+                        <p className="text-3xl font-extrabold text-cyan-400">${order.total_amount.toFixed(2)}</p>
+                    </div>
+                </div>
+
+                {/* Status Update Action in Modal */}
+                <div className="pt-4 flex justify-end border-t border-gray-700 mt-4">
+                    <select 
+                        value={order.status}
+                        onChange={(e) => onStatusChange(order.id, e.target.value as Order['status'])}
+                        className="bg-gray-700 border border-purple-700 text-white rounded-md p-2 focus:ring-purple-500"
+                    >
+                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// ==================================================================
+// --- ⚙️ ADMIN DASHBOARD COMPONENT ---
+// ==================================================================
+
+export function AdminDashboardPage() {
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null); 
+    const [aiQuery, setAiQuery] = useState('');
+    const [aiResponse, setAiResponse] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const adminName = localStorage.getItem('userName') || 'Admin';
+
+    const authToken = localStorage.getItem('authToken');
+
+    // --- Data Fetching Effect ---
+    useEffect(() => {
+        if (!authToken) {
+            navigate('/admin/login', { replace: true });
+            return;
+        }
+
+        const fetchAdminData = async () => {
+            try {
+                // Fetch Orders and Products (Products are now fetched here to get the total count)
+                const [ordersResponse, productsResponse] = await Promise.all([
+                    fetch(`${BASE_URL}/api/admin/orders`, { headers: { 'x-auth-token': authToken! } }),
+                    fetch(`${BASE_URL}/api/products`), 
+                ]);
+
+                if (!ordersResponse.ok || ordersResponse.status === 401) {
+                     throw new Error("Session expired. Please log in again.");
+                }
+
+                const ordersData = await ordersResponse.json();
+                const productsData = await productsResponse.json();
+
+                setOrders(ordersData);
+                setProducts(productsData); // Products count ke liye zaroori
+                setError(null);
+
+            } catch (err) {
+                setError(`Network/Session Error. Please check Node.js: ${err instanceof Error ? err.message : 'Unknown'}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAdminData();
+    }, [authToken, navigate]);
+
+    // --- Admin Action: Status Update ---
+    const handleStatusUpdate = async (orderId: number, newStatus: Order['status']) => {
+        if (!authToken) return;
+        setLoading(true);
+
+        try {
+            const response = await fetch(`${BASE_URL}/api/admin/orders/${orderId}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (response.ok) {
+                setOrders(prevOrders => prevOrders.map(order => 
+                    order.id === orderId ? { ...order, status: newStatus } : order
+                ));
+                if(selectedOrder && selectedOrder.id === orderId) {
+                    setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+                }
+            } else {
+                alert('Status update failed!');
+            }
+        } catch (error) {
+            console.error('Update error:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    // --- AI Chat Handler (Enhanced Mock Implementation) ---
+    const handleAIChatSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (aiQuery.trim()) {
+            setAiResponse('...Processing Command...');
+            
+            const queryLower = aiQuery.toLowerCase();
+            
+            let responseText = '';
+
+            if (queryLower.includes('update price') || queryLower.includes('add product') || queryLower.includes('product manager')) {
+                responseText = 'Command Accepted: Redirecting to Product Management for changes.';
+                setTimeout(() => navigate('/admin/products'), 1500);
+            } else if (queryLower.includes('pending orders')) {
+                const pendingCount = orders.filter(o => o.status === 'Pending').length;
+                responseText = `Query Result: There are currently ${pendingCount} orders pending confirmation.`;
+            } else if (queryLower.includes('total revenue')) {
+                const deliveredRevenue = orders.filter(o => o.status === 'Delivered').reduce((sum, o) => sum + o.total_amount, 0);
+                responseText = `Query Result: The total delivered revenue is $${deliveredRevenue.toFixed(2)}.`;
+            } else {
+                 responseText = `Error: Unrecognized command: "${aiQuery}". Try 'Pending orders' or 'Update price'.`;
+            }
+            
+            setTimeout(() => setAiResponse(responseText), 500);
+            setAiQuery('');
+        }
+    };
+
+
+    // --- Data Calculation ---
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.status === 'Delivered' ? order.total_amount : 0), 0);
+    const pendingOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
+    const totalProducts = products.length; // Products count
+
+
+    // --- RENDERING THE DASHBOARD ---
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+                <Loader className="w-12 h-12 animate-spin text-purple-400" />
+                <p className="ml-4 text-xl">Accessing Data Matrix...</p>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-6">
+                <XCircle className="w-16 h-16 text-red-500 mb-4 animate-pulse" />
+                <h1 className="text-3xl font-bold text-red-400">DATA LOAD FAILED</h1>
+                <p className="text-lg text-gray-400 mt-2 p-3 bg-gray-800 rounded">{error}</p>
+                <button onClick={() => navigate('/admin/login')} className="mt-6 bg-purple-600 p-2 px-4 rounded hover:bg-purple-700 transition">Relogin</button>
+            </div>
+        );
+    }
+
+
+    return (
+        <div className="min-h-screen bg-gray-900 text-white font-sans">
+            {/* --- TOP BAR / ADMIN HEADER (Custom Minimal Header) --- */}
+            <header className="bg-gray-800 p-4 shadow-lg border-b border-purple-900/50">
+                <div className="max-w-7xl mx-auto flex justify-between items-center">
+                    <h1 className="text-3xl font-bold text-cyan-400 flex items-center">
+                        <Zap className="w-7 h-7 mr-2 text-purple-400 animate-pulse" />
+                        BASIT CMD Dashboard
+                    </h1>
+                    <button 
+                        onClick={() => handleLogout()}
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center"
+                    >
+                        <LogOut className="w-5 h-5 mr-2" /> Log Out
+                    </button>
+                </div>
+            </header>
+
+            <main className="max-w-7xl mx-auto p-6">
+                
+                {/* --- 0. AI Command Interface --- */}
+                {/* ... (AI Console code remains the same) ... */}
+                <div className='bg-gray-800 p-4 rounded-lg mb-6 border border-cyan-800/50'>
+                    <h3 className='text-lg font-bold text-cyan-400 mb-3 flex items-center'><Zap className="w-5 h-5 mr-2" /> AI Command Console</h3>
+                    <form onSubmit={handleAIChatSubmit} className='flex flex-col gap-2'>
+                        <input
+                            type="text"
+                            value={aiQuery}
+                            onChange={(e) => setAiQuery(e.target.value)}
+                            placeholder="Type command (e.g., 'Pending orders' or 'Update price...')"
+                            className="flex-grow p-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-purple-500 focus:ring-purple-500"
+                        />
+                        <button type="submit" className='bg-purple-600 p-2 rounded hover:bg-purple-700 transition flex justify-center items-center'>
+                            <Send className='w-5 h-5 mr-2' /> Execute Command
+                        </button>
+                    </form>
+                    {aiResponse && (
+                        <motion.p 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`mt-3 p-3 text-sm rounded border ${aiResponse.includes('Error') || aiResponse.includes('Unrecognized') ? 'bg-red-900 border-red-700 text-red-300' : 'bg-green-900 border-green-700 text-green-300'}`}
+                        >
+                            {aiResponse}
+                        </motion.p>
+                    )}
+                </div>
+
+
+                {/* --- 1. KEY METRICS --- */}
+                <h2 className="text-2xl font-bold mb-6 text-purple-400">System Overview</h2>
+                <motion.div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: 0.1 } } }}>
+                    {[{ title: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, color: 'text-green-400', stat: 'Delivered Total' },
+                      { title: 'New Orders', value: pendingOrders, icon: Package, color: 'text-yellow-400', stat: 'Pending / Processing' },
+                      { title: 'Total Products', value: totalProducts, icon: ShoppingCart, color: 'text-purple-400', stat: 'Items in Stock' },
+                      { title: 'Total Users', value: orders.length + 1, icon: Users, color: 'text-cyan-400', stat: 'High Priority' },
+                    ].map((metric, index) => (
+                        <motion.div key={index} className="bg-gray-800 p-6 rounded-lg border border-purple-900/70 shadow-xl" initial={{ opacity: 0, y: 20 }} variants={{ visible: { opacity: 1, y: 0 } }}>
+                            <div className="flex items-center justify-between"><span className="text-sm font-medium text-gray-400">{metric.title}</span><metric.icon className={`w-5 h-5 ${metric.color}`} /></div>
+                            <div className="mt-1"><p className="text-3xl font-extrabold">{metric.value}</p><p className="text-xs text-gray-500 mt-1">{metric.stat}</p></div>
+                        </motion.div>
+                    ))}
+                </motion.div>
+
+
+                {/* --- 2. ORDERS MANAGEMENT (TABLE) --- */}
+                <h2 className="text-2xl font-bold mb-4 text-purple-400 border-t border-purple-900/50 pt-6">
+                    Order Queue ({orders.length} Total)
+                </h2>
+                
+                <div className="overflow-x-auto bg-gray-800 rounded-lg shadow-2xl border border-cyan-900/50">
+                    <table className="min-w-full divide-y divide-purple-900/50">
+                        <thead>
+                            <tr className="text-left text-xs font-semibold uppercase tracking-wider text-gray-400 bg-gray-700">
+                                <th className="p-4">Order ID</th>
+                                <th className="p-4">Customer</th>
+                                <th className="p-4">Total</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4">Details/Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700/50">
+                            {orders.map((order) => (
+                                <tr key={order.id} className="hover:bg-gray-700 transition-colors duration-200">
+                                    <td className="p-4 text-sm font-medium text-cyan-400">{order.order_number}</td>
+                                    <td className="p-4 text-sm">
+                                        <p className="font-semibold text-white">{order.user_details.name}</p>
+                                        <p className="text-xs text-gray-400">{order.user_details.email}</p>
+                                    </td>
+                                    <td className="p-4 text-sm font-extrabold text-green-400">${order.total_amount.toFixed(2)}</td>
+                                    <td className="p-4"><StatusBadge status={order.status} /></td>
+                                    <td className="p-4 text-sm flex items-center space-x-2">
+                                        {/* View Details Button */}
+                                        <button 
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="text-purple-400 hover:text-purple-300 p-1 rounded-md"
+                                        >
+                                            <Info className="w-5 h-5" />
+                                        </button>
+                                        {/* Status Update Dropdown */}
+                                        <select 
+                                            value={order.status}
+                                            onChange={(e) => handleStatusUpdate(order.id, e.target.value as Order['status'])}
+                                            className="bg-gray-700 border border-purple-700 text-white rounded-md p-1 text-xs focus:ring-purple-500"
+                                            disabled={loading}
+                                        >
+                                            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {orders.length === 0 && !loading && (<p className="p-6 text-center text-gray-500">No active orders found in the matrix.</p>)}
+                </div>
+                
+                {/* --- 3. PRODUCT MANAGEMENT LINK --- */}
+                <div className="mt-8 text-center border-t border-purple-900/50 pt-6">
+                    <button 
+                        onClick={() => navigate('/admin/products')} 
+                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 flex items-center mx-auto"
+                    >
+                        <ShoppingCart className="w-5 h-5 mr-2" /> Manage Products & Stock
+                    </button>
+                </div>
+
+            </main>
+
+            {/* Order Details Modal Render */}
+            {selectedOrder && <OrderDetailsModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onStatusChange={handleStatusUpdate} />}
+        </div>
+    );
+}
+
