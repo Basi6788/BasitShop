@@ -34,7 +34,7 @@ export const CheckoutPage: React.FC = () => {
         e.preventDefault();
         
         if (!checkoutItems.length) {
-            console.log("Checkout ke liye koi item nahi hai!");
+            console.log("Empty!");
             return;
         }
 
