@@ -8,9 +8,9 @@ import { CheckCircleIcon, CreditCardIcon, BanknoteIcon, WalletIcon, Loader, Arro
 const BACKEND_URL = 'https://romeobackend.netlify.app'; 
 
 const paymentMethods = [
-    { id: 'cod', name: 'Cash on Delivery', description: 'Paise delivery par.', icon: BanknoteIcon, color: 'green', disabled: false },
-    { id: 'jazzcash', name: 'JazzCash', description: 'JazzCash Mobile Account se adaigi.', icon: WalletIcon, color: 'red', disabled: false status: 'Recommended' },
-    { id: 'easypaisa', name: 'EasyPaisa', description: 'EasyPaisa Mobile Account se adaigi.', icon: WalletIcon, color: 'purple', disabled: false },
+    { id: 'cod', name: 'Cash on Delivery', description: 'Paise delivery par.', icon: BanknoteIcon, color: 'green', disabled: false, },
+    { id: 'jazzcash', name: 'JazzCash', description: 'JazzCash Mobile Account se adaigi.', icon: WalletIcon, color: 'red', disabled: false, status: 'Recommended' },
+    { id: 'easypaisa', name: 'EasyPaisa', description: 'EasyPaisa Mobile Account se adaigi.', icon: WalletIcon, color: 'purple', disabled: false, },
     { id: 'card', name: 'Credit/Debit Card', description: 'Online card se adaigi (Abhi dastiyab nahi).', icon: CreditCardIcon, color: 'blue', disabled: false, status: 'Open now' },
 ];
 
