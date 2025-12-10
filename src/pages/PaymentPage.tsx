@@ -8,15 +8,15 @@ import { CheckCircleIcon, CreditCardIcon, BanknoteIcon, WalletIcon, Loader, Arro
 const BACKEND_URL = 'https://romeobackend.netlify.app'; 
 
 const paymentMethods = [
-    { id: 'cod', name: 'Cash on Delivery', description: 'Delivery ke waqt naqad ada karein.', icon: BanknoteIcon, color: 'green', disabled: false },
-    { id: 'jazzcash', name: 'JazzCash', description: 'JazzCash Mobile Account se adaigi.', icon: WalletIcon, color: 'pink', disabled: false },
+    { id: 'cod', name: 'Cash on Delivery', description: 'Paise delivery par.', icon: BanknoteIcon, color: 'green', disabled: false },
+    { id: 'jazzcash', name: 'JazzCash', description: 'JazzCash Mobile Account se adaigi.', icon: WalletIcon, color: 'red', disabled: false status: 'Recommended' },
     { id: 'easypaisa', name: 'EasyPaisa', description: 'EasyPaisa Mobile Account se adaigi.', icon: WalletIcon, color: 'purple', disabled: false },
-    { id: 'card', name: 'Credit/Debit Card', description: 'Online card se adaigi (Abhi dastiyab nahi).', icon: CreditCardIcon, color: 'blue', disabled: true, status: 'Closed Now' },
+    { id: 'card', name: 'Credit/Debit Card', description: 'Online card se adaigi (Abhi dastiyab nahi).', icon: CreditCardIcon, color: 'blue', disabled: false, status: 'Open now' },
 ];
 
 const DUMMY_PAYMENT_DETAILS = {
-    jazzcash: { name: 'Basit JazzCash A/C', number: '030XXXXXXX', bank: 'JazzCash' },
-    easypaisa: { name: 'Basit EasyPaisa A/C', number: '030XXXXXXX', bank: 'EasyPaisa' },
+    jazzcash: { name: 'Nazeer Ahmad JazzCash A/C', number: '03018005087', bank: 'JazzCash' },
+    easypaisa: { name: 'Nazeer Ahmad EasyPaisa A/C', number: '03018005087', bank: 'EasyPaisa' },
 };
 
 // Interfaces (Zaroori types)
