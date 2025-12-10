@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 import axios from 'axios';
 import { CheckCircleIcon, CreditCardIcon, BanknoteIcon, WalletIcon, Loader, ArrowLeftIcon, UserIcon, MapPinIcon, PhoneIcon } from 'lucide-react';
 
-const BACKEND_URL = 'https://romeo-backend.vercel.app'; 
+const BACKEND_URL = 'https://romeobackend.netlify.app'; 
 
 const paymentMethods = [
     { id: 'cod', name: 'Cash on Delivery', description: 'Delivery ke waqt naqad ada karein.', icon: BanknoteIcon, color: 'green', disabled: false },
