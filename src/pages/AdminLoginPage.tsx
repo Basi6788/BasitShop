@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn, Loader, XCircle, Eye, EyeOff } from 'lucide-react';
 
 // Backend API URL
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
 
 const AdminLoginPage: React.FC = () => {
     const [email, setEmail] = useState(''); 
