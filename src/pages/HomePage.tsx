@@ -25,7 +25,7 @@ import { Product } from '../data/products';
 import { useCart } from '../context/CartContext'; 
 
 // Backend URL constant (FRONTEND SIDE: Base URL)
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app/';
 
 // ==================================================================
 // --- 🌟 ANIMATION HELPER (No Change) ---
