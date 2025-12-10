@@ -4,7 +4,7 @@ import { SearchIcon, XCircleIcon, AlertTriangleIcon, Loader2 } from 'lucide-reac
 import axios from 'axios';
 import { ProductCard, Product } from '../components/ProductCard'; 
 
-const BACKEND_URL = 'https://romeo-backend.vercel.app/api/products/search';
+const BACKEND_URL = 'https://romeobackend.netlify.app/api/products/search';
 
 export function SearchPage() {
     const [searchParams] = useSearchParams();
