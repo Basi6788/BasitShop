@@ -16,8 +16,8 @@ import toast from 'react-hot-toast';
 
 
 // Backend API URL
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
-const MAX_IMAGE_SIZE = 350 * 1024; // 350 KB limit
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
+const MAX_IMAGE_SIZE = 35000 * 1024; // 350 KB limit
 
 // --- Interfaces ---
 interface UserProfile {
