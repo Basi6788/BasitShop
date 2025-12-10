@@ -8,7 +8,7 @@ export const ConfirmationPage = () => {
     const state = location.state || {};
     
     // Data received from PaymentPage
-    const message = state.message || 'Shukriya, aapka order mukammal ho gaya hai.'; 
+    const message = state.message || 'Order Received'; 
     const method = state.method;
     const orderId = state.orderId || 'N/A';
     const orderSummary = state.orderSummary;
