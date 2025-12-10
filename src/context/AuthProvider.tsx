@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, createContext, useContext, use
 import { Eye, EyeOff, User, LogOut, Loader2, Mail, Lock, AlertTriangle, Camera } from 'lucide-react'; 
 
 // --- Global Constants and Utilities ---
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
 const USER_ID_KEY = 'currentUserId';
 const USER_NAME_KEY = 'userName';
 const AUTH_TOKEN_KEY = 'authToken'; 
@@ -16,21 +16,21 @@ const PROFILE_PIC_KEY = 'profilePicBase64';
 const getErrorMessage = (errorName) => {
   switch (errorName) {
     case 'InvalidCredentials':
-      return 'Email ya password ghalat hai. Dobarah koshish karen.';
+      return 'Email or password is wrong.';
     case 'EmailInUse':
-      return 'Yeh email address pehle se istemaal ho chuka hai.';
+      return 'Email is already registered.';
     case 'EmptyFields':
-      return 'Barae meherbani saare zaroori fields darj karen.';
+      return 'Please fill all fiels.';
     case 'PasswordTooShort':
-        return 'Password kam az kam 6 characters ka hona zaroori hai.';
+        return 'Password can not short from 6 chrachter.';
     case 'InvalidName':
-        return 'Naam 3 se 50 characters ka hona chahiye.';
+        return 'Use 3 to 20 chrachters in name.';
     case 'NetworkError':
-      return 'Network mein masla hai ya backend available nahi. Dobarah koshish karen.';
+      return 'Oops there is error from server please try later.';
     case 'AdminLogin': // Admin login attempt on user form
-        return 'Admin access denied from this form.';
+        return 'Admin cannot access from this form .';
     default:
-      return 'Authentication mein kuch ghalti hogai. Dobarah koshish karen.';
+      return 'It seems like there is any problem.';
   }
 };
 
@@ -245,7 +245,7 @@ export const AuthFormHandler = ({ isLoginView, onToggle, onLoginSuccess }) => {
                 <input 
                   type="text" 
                   id="authName" 
-                  placeholder="Aapka Poora Naam"
+                  placeholder="Your Full Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="mt-1 block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
