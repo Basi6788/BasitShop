@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 
 // Aapka Backend URL
-const API_URL = "https://romeobackend.netlify.app/products";
+const API_URL = "https://romeobackend.netlify.app/api/products";
 
 export function AdminProductsPage() {
   // Dummy data hata diya, ab empty array se start hoga
