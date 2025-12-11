@@ -23,7 +23,7 @@ const getInitialTheme = (): Theme => {
 };
 
 // Backend API URL — make sure your backend env matches this
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
 
 // --- Interfaces based on backend data (No change) ---
 interface OrderItem {
