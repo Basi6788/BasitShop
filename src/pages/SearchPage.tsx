@@ -4,7 +4,12 @@ import { SearchIcon, XCircleIcon, AlertTriangleIcon, Loader2 } from 'lucide-reac
 import axios from 'axios';
 import { ProductCard, Product } from '../components/ProductCard'; 
 
-const BACKEND_URL = 'https://romeo-backend.vercel.app/api/products/search';
+// 💡 FIX 1: Correct Backend URL Setup.
+// Hamesha base URL (jo aapne Vercel/Netlify par deploy kiya hai)
+// aur endpoint alag-alag define karein.
+// Aapka backend Vercel ya Netlify par hai, toh woh full URL dein.
+const API_BASE_URL = 'https://romeo-backend.vercel.app'; // Ya aapka Netlify URL
+const SEARCH_ENDPOINT = '/api/products/search'; // Yeh aapke backend index.js mein hai
 
 export function SearchPage() {
     const [searchParams] = useSearchParams();
@@ -23,28 +28,58 @@ export function SearchPage() {
                 return;
             }
 
+            // 💡 FIX: Yeh URL ab theek se banega: https://romeo-backend.vercel.app/api/products/search
+            const fullUrl = `${API_BASE_URL}${SEARCH_ENDPOINT}`; 
+
             try {
                 setLoading(true);
                 setError(null);
                 setResults([]);
 
-                const response = await axios.get(`${BACKEND_URL}?q=${encodeURIComponent(searchTerm)}`, {
+                const response = await axios.get(fullUrl, {
+                    params: { q: searchTerm }, // Query param ko params object mein bhejna behtar hai
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    timeout: 10000, // 10 second ka timeout
                 });
 
-                if (response.data && Array.isArray(response.data.products)) {
-                    setResults(response.data.products);
-                } else if (Array.isArray(response.data)) {
-                    // fallback if backend returns a direct array
+                // 💡 FIX 2: Backend Response Structure Check
+                // Aapka backend code (/api/products/search) yeh structure return karta hai:
+                // { success: true, query: q, count: results.length, results: [...] }
+                // Aur aapka code response.data.products dhoondh raha tha.
+                if (response.data && Array.isArray(response.data.results)) {
+                    // Sahi property se data uthayein
+                    setResults(response.data.results);
+                } else if (response.data && Array.isArray(response.data)) {
+                    // Agar backend ne sirf array return kiya (jo /api/products karta hai)
                     setResults(response.data);
                 } else {
+                    // Agar structure galat ho ya empty ho
                     setResults([]);
                 }
+                
+                // Agar data mila lekin array empty ho
+                if(response.data.count === 0 || setResults.length === 0){
+                    setError(null); // Agar 0 results hon toh error nahi hona chahiye
+                }
+
             } catch (err: any) {
-                console.error('Search API Error:', err);
-                setError('Server se response nahi mila. Thodi der baad try karein.');
+                console.error('Search API Error:', err.response || err);
+                
+                let errorMessage = 'Server se response nahi mila. Thodi der baad try karein.';
+                
+                if (axios.isAxiosError(err)) {
+                     if (err.response) {
+                        // Agar 400 Bad Request ya 404 Not Found jaisa status aaya ho
+                        errorMessage = err.response.data.message || `Server Error (${err.response.status}).`;
+                    } else if (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK') {
+                        // Agar connection timeout hua ho ya network error ho
+                        errorMessage = 'Network connection fail ho gaya ya backend server down hai.';
+                    }
+                }
+                
+                setError(errorMessage);
             } finally {
                 setLoading(false);
             }
@@ -53,7 +88,7 @@ export function SearchPage() {
         fetchResults();
     }, [searchTerm]);
 
-    // --- Content Rendering Logic ---
+    // --- Content Rendering Logic (No changes needed here) ---
 
     let content;
 
