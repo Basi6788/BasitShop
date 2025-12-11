@@ -7,7 +7,7 @@ import { ArrowLeft, Package, PlusCircle, Edit, Trash2, XCircle, Loader } from 'l
 import { motion } from 'framer-motion';
 
 // Backend API URL
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
 
 // --- Interfaces for Product Data (Same) ---
 interface Product {
