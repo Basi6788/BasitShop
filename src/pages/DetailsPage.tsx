@@ -5,7 +5,7 @@ import { ShoppingCartIcon, HeartIcon, ZapIcon, StarIcon, MinusIcon, PlusIcon, Ch
 import { useCart } from '../context/CartContext'; // Cart context import karein
 import { Product } from '../data/products'; 
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app'; 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app'; 
 
 export function DetailsPage() {
     const { id } = useParams<{ id: string }>();
