@@ -10,7 +10,7 @@ export function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app'; // ✅ Your deployed backend
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app'; // ✅ Your deployed backend
 
   useEffect(() => {
     const fetchOrders = async () => {
