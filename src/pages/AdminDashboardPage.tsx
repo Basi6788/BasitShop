@@ -23,8 +23,7 @@ const getInitialTheme = (): Theme => {
 };
 
 // Backend API URL — make sure your backend env matches this
-// 💡 FIX: BASE_URL ko aapke latest backend deployment ke hisaab se set kiya gaya hai.
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app'; 
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
 
 // --- Interfaces based on backend data (No change) ---
 interface OrderItem {
@@ -385,7 +384,7 @@ export function AdminDashboardPage() {
   // --- END UI THEME CLASSES ---
 
 
-  // --- Data Fetching & CRUD (Critical Fix Applied Here) ---
+  // --- Data Fetching & CRUD (Unchanged logic) ---
   const fetchAdminData = useCallback(async (isInitial = false) => {
     setError(null);
     if (!authToken) {
@@ -406,12 +405,8 @@ export function AdminDashboardPage() {
         fetch(productsUrl)
       ]);
 
-      // 💡 CRITICAL FIX 1: If 401 or 403, clear token and redirect IMMEDIATELY.
-      if (ordersResponse.status === 401 || ordersResponse.status === 403) {
-        // Token invalid, expired, or forbidden role.
-        localStorage.removeItem('authToken'); 
-        // Throwing error with a custom code to catch below and show specific message
-        throw new Error("SESSION_EXPIRED_OR_UNAUTHORIZED"); 
+      if (ordersResponse.status === 401) {
+        throw new Error("Session expired. Token invalid. Please login again.");
       }
       
       if (!ordersResponse.ok) {
@@ -422,15 +417,9 @@ export function AdminDashboardPage() {
       }
       
       const ordersText = await ordersResponse.text();
-      // 💡 CRITICAL FIX 2: Check for unexpected response formats (e.g., Vercel/Netlify error page)
       if (!ordersText.trim() || ordersText.trim().startsWith('<')) {
-        // Agar response empty ho ya HTML error page ho (Cold Start ya Deployment ghalti)
-        throw new Error("NETWORK_OR_SERVER_DOWN: Backend is likely restarting or not deployed correctly.");
+        throw new Error("Network/Session Error. Unexpected empty/HTML response instead of JSON. (Backend not running or down)");
       }
-      
-      // 💡 FIX 3: Original code mein is tarah tha: 
-      // if (ordersResponse.status === 401) { throw new Error("Session expired. Token invalid. Please login again."); }
-      // Humne isko CRITICAL FIX 1 mein theek kar diya hai.
       
       const parsedOrders = JSON.parse(ordersText) as any[];
       const productsData = await productsResponse.json();
@@ -472,21 +461,7 @@ export function AdminDashboardPage() {
       setProducts(Array.isArray(productsData) ? productsData : []);
       setError(null);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown network error.';
-      
-      // 💡 CRITICAL FIX 4: Catch the specific session error and show custom message.
-      if (errorMsg === "SESSION_EXPIRED_OR_UNAUTHORIZED") {
-          setError("❌ Session expired. Please log in again to access the dashboard.");
-          // Session expire hone par dobara login page par bhej dein
-          navigate('/admin/login', { replace: true }); 
-          return;
-      }
-      // 💡 CRITICAL FIX 5: Improve Firebase/DB check message for network issues
-      if (errorMsg.includes("NETWORK_OR_SERVER_DOWN") || errorMsg.includes("Failed to fetch")) {
-          setError(`❌ Network Error. Iska matlab hai Backend Down hai ya URL ghalat hai: ${BASE_URL}`);
-      } else {
-          setError(errorMsg);
-      }
+      setError(err instanceof Error ? err.message : 'Unknown network error.');
     } finally {
       if (isInitial) setLoadingInitial(false);
       else setLoadingRefresh(false);
@@ -731,12 +706,10 @@ export function AdminDashboardPage() {
       <div className={`min-h-screen flex flex-col items-center justify-center ${themeClasses.bg} ${themeClasses.text} p-6`}>
         <XCircle className="w-16 h-16 text-red-500 mb-4 animate-pulse" />
         <h1 className="text-3xl font-bold text-red-500">DATA LOAD FAILED</h1>
-        {/* 💡 FIX 6: Error message ko theek kiya aur Firebase/DB check ka message shamil kiya */}
         <p className={`text-lg ${themeClasses.subText} mt-2 p-3 ${themeClasses.cardBg} rounded text-center max-w-lg border border-red-500/50 shadow-xl`}>
             {error}
             <br />
-            {/* Ab yeh message sirf ek hint hai, asal error upar dikh raha hai */}
-            <span className='text-sm text-yellow-500'>Agar error Network/Backend se mutaliq hai, toh *Backend URL aur DB Connection* zarur check karein.</span>
+            <span className='text-sm text-yellow-500'>Backend URL aur Firebase/DB Connection check karein.</span>
         </p>
         <button onClick={() => { setLoadingInitial(true); fetchAdminData(true); }} className={`mt-6 ${isDark ? themeClasses.primary : 'bg-blue-600 hover:bg-blue-700'} p-3 px-6 rounded-xl transition shadow-lg text-white`}>Try Again</button>
         <button onClick={handleLogout} className={`mt-4 bg-gray-500 hover:bg-gray-600 p-3 px-6 rounded-xl transition text-white`}>Logout</button>
