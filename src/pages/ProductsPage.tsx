@@ -6,7 +6,7 @@ import { Product } from "../data/products";
 import { motion, AnimatePresence } from "framer-motion";
 
 const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "https://romeobackend.netlify.app";
+  import.meta.env.VITE_BACKEND_URL || "https://romeo-backend.vercel.app";
 
 const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
