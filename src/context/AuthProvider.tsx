@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, createContext, useContext, use
 import { Eye, EyeOff, User, LogOut, Loader2, Mail, Lock, AlertTriangle, Camera } from 'lucide-react'; 
 
 // --- Global Constants and Utilities ---
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
 const USER_ID_KEY = 'currentUserId';
 const USER_NAME_KEY = 'userName';
 const AUTH_TOKEN_KEY = 'authToken'; 
