@@ -2,30 +2,28 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  DollarSign, Package, ShoppingCart, Users, Loader, Cpu, 
+  DollarSign, Package, ShoppingCart, Users, Loader, Cpu,
   User, FileText, Send, XCircle, LogOut, Wallet,
   CalendarClock, MapPin, Search, Trash2,
-  Phone, MessageSquare, RefreshCcw, LayoutDashboard, Settings, ListPlus, 
-  Moon, Sun, ImagePlus, ChevronRight, Menu, X 
+  Phone, MessageSquare, RefreshCcw, LayoutDashboard, Settings, ListPlus,
+  Moon, Sun, ImagePlus, ChevronRight, Menu, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fileService } from '../utils/fileService';
 
 // --- Global Theme State Management (Using localStorage for persistence) ---
 type Theme = 'light' | 'dark';
-
-// Default to 'light' for Barbershop style
 const getInitialTheme = (): Theme => {
   if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
     return localStorage.getItem('theme') as Theme;
   }
-  return 'light'; 
+  return 'light';
 };
 
-// Backend API URL — make sure your backend env matches this
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
+// Backend API URL — prefer VITE_BACKEND_URL, fallback to Vercel-host
+const BASE_URL = (import.meta.env.VITE_BACKEND_URL as string) || 'https://romeo-backend.vercel.app';
 
-// --- Interfaces based on backend data (No change) ---
+// --- Interfaces ---
 interface OrderItem {
   name: string;
   quantity: number;
@@ -38,7 +36,7 @@ interface Order {
   order_number: string;
   total_amount: number;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
-  created_at: string | { _seconds: number, _nanoseconds: number }; 
+  created_at: string | { _seconds: number, _nanoseconds: number };
   user_details: { name: string; email: string; };
   items: OrderItem[];
   shipping_details: {
@@ -58,10 +56,10 @@ interface Order {
 
 const STATUS_OPTIONS: Order['status'][] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
-// Utility component: StatusBadge 
+// StatusBadge
 const StatusBadge: React.FC<{ status: Order['status'] }> = ({ status }) => {
   const statusClasses: Record<Order['status'], string> = {
-    Pending: 'bg-yellow-400 text-yellow-900 dark:bg-yellow-800 dark:text-yellow-100', 
+    Pending: 'bg-yellow-400 text-yellow-900 dark:bg-yellow-800 dark:text-yellow-100',
     Processing: 'bg-blue-400 text-blue-900 dark:bg-blue-800 dark:text-blue-100',
     Shipped: 'bg-cyan-400 text-cyan-900 dark:bg-cyan-800 dark:text-cyan-100',
     Delivered: 'bg-green-400 text-green-900 dark:bg-green-800 dark:text-green-100',
@@ -74,7 +72,7 @@ const StatusBadge: React.FC<{ status: Order['status'] }> = ({ status }) => {
   );
 };
 
-// OrderDetailsModal component (Theme Fixed)
+// OrderDetailsModal (same UI, small props typing fixes)
 interface OrderDetailsModalProps {
   order: Order;
   onClose: () => void;
@@ -91,13 +89,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
       : 'N/A');
 
   const items = order.items || [];
-  
+
   const isDark = theme === 'dark';
   const bgColor = isDark ? 'bg-gray-800' : 'bg-white';
   const textColor = isDark ? 'text-white' : 'text-gray-900';
   const subTextColor = isDark ? 'text-gray-400' : 'text-gray-600';
   const cardBg = isDark ? 'bg-gray-700/50' : 'bg-gray-100';
-  const headerColor = isDark ? 'text-cyan-400' : 'text-blue-600'; 
+  const headerColor = isDark ? 'text-cyan-400' : 'text-blue-600';
   const borderColor = isDark ? 'border-gray-600' : 'border-gray-300';
   const inputBg = isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900';
   const highlightColor = isDark ? 'text-cyan-500' : 'text-blue-500';
@@ -130,7 +128,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
         </div>
 
         <div className="space-y-6 text-sm max-h-[75vh] overflow-y-auto pr-3 -mr-3">
-          {/* Summary Section */}
           <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${cardBg} p-4 rounded-xl border ${borderColor}`}>
             <div>
               <h4 className={`font-semibold ${subTextColor} mb-1 text-xs uppercase tracking-wider flex items-center`}>
@@ -151,7 +148,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column */}
             <div className="space-y-6">
               <div className={`${cardBg} p-5 rounded-xl border ${borderColor} hover:border-indigo-500 transition-all duration-300`}>
                 <h4 className={`font-bold text-indigo-500 flex items-center mb-3 text-lg`}>
@@ -197,7 +193,6 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
               </div>
             </div>
 
-            {/* Right Column */}
             <div className="space-y-6">
               <div className={`${cardBg} p-5 rounded-xl border ${borderColor} hover:border-green-500 transition-all duration-300`}>
                 <h4 className="font-bold text-green-500 flex items-center mb-3 text-lg">
@@ -269,7 +264,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
   );
 };
 
-// --- Sidebar Navigation Component ---
+// Sidebar NavItem (unchanged)
 interface NavItemProps {
   icon: React.ElementType;
   label: string;
@@ -278,24 +273,18 @@ interface NavItemProps {
   isDarkTheme: boolean;
 }
 const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, isActive, onClick, isDarkTheme }) => {
-  // Light Mode (Barbershop style)
   const activeLightClasses = 'bg-blue-100 text-blue-700 border-blue-500';
   const inactiveLightClasses = 'text-gray-600 hover:bg-gray-200/50 hover:text-gray-900 border-transparent';
-  
-  // Dark Mode (Affiliate style)
   const activeDarkClasses = 'dark:bg-cyan-500/20 dark:text-cyan-400 dark:border-cyan-500';
   const inactiveDarkClasses = 'dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-white dark:border-transparent';
 
   const baseClasses = 'flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4';
-  
-  const currentActiveClasses = isActive 
-    ? (isDarkTheme ? activeDarkClasses : activeLightClasses) 
+  const currentActiveClasses = isActive
+    ? (isDarkTheme ? activeDarkClasses : activeLightClasses)
     : (isDarkTheme ? inactiveDarkClasses : inactiveLightClasses);
-
   const textColor = isDarkTheme ? 'text-white' : 'text-gray-900';
-
-  const iconColor = isActive 
-    ? (isDarkTheme ? 'text-cyan-400' : 'text-blue-700') 
+  const iconColor = isActive
+    ? (isDarkTheme ? 'text-cyan-400' : 'text-blue-700')
     : (isDarkTheme ? 'text-gray-500' : 'text-gray-600');
 
   return (
@@ -310,12 +299,13 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, isActive, onClick,
   );
 };
 
-// Main AdminDashboardPage component
+// Main component
 export function AdminDashboardPage() {
+  // state declarations
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [loadingInitial, setLoadingInitial] = useState<boolean>(true); 
-  const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false); 
+  const [loadingInitial, setLoadingInitial] = useState<boolean>(true);
+  const [loadingRefresh, setLoadingRefresh] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [aiQuery, setAiQuery] = useState<string>('');
@@ -325,15 +315,14 @@ export function AdminDashboardPage() {
   const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [newCode, setNewCode] = useState<string>('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  
-  // Ref for scrolling to sections
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   const aiRef = useRef<HTMLDivElement>(null);
   const ordersRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Theme State
-  const [theme, setTheme] = useState<Theme>(getInitialTheme); 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleTheme = () => {
     setTheme(prevTheme => {
@@ -345,12 +334,10 @@ export function AdminDashboardPage() {
 
   const navigate = useNavigate();
   const authToken = localStorage.getItem('authToken');
-
-  // --- Theme Classes (Light Mode Default, Dark Mode with 'dark:' prefix) ---
   const isDark = theme === 'dark';
+
   const themeClasses = {
-    // Light Mode (Barbershop Style) / Dark Mode (Affiliate Style)
-    bg: 'bg-gray-50 dark:bg-[#151723]', 
+    bg: 'bg-gray-50 dark:bg-[#151723]',
     text: 'text-gray-900 dark:text-white',
     subText: 'text-gray-600 dark:text-gray-400',
     sidebarBg: 'bg-white dark:bg-[#1e202e]',
@@ -360,31 +347,22 @@ export function AdminDashboardPage() {
     inputBg: 'bg-gray-100 border-gray-300 dark:bg-gray-700/50 dark:border-gray-600',
     tableHeaderBg: 'bg-gray-100 dark:bg-gray-700',
     tableRowHover: 'hover:bg-gray-100/70 dark:hover:bg-gray-700/70',
-    primary: 'bg-blue-600 hover:bg-blue-700 dark:bg-cyan-600 dark:hover:bg-cyan-500', 
+    primary: 'bg-blue-600 hover:bg-blue-700 dark:bg-cyan-600 dark:hover:bg-cyan-500',
     primaryText: 'text-blue-600 dark:text-cyan-600',
     danger: 'bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500',
-    warning: 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500 dark:bg-yellow-600 dark:text-white dark:hover:bg-yellow-500', // Adjusted light mode warning color for better visibility
-    
-    // Metric Card Colors 
+    warning: 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500 dark:bg-yellow-600 dark:text-white dark:hover:bg-yellow-500',
     metricBg1: 'bg-white dark:bg-green-600',
     metricBg2: 'bg-white dark:bg-indigo-600',
     metricBg3: 'bg-white dark:bg-orange-600',
     metricBg4: 'bg-white dark:bg-pink-600',
   };
-  
-  // Apply theme to document body
+
   useEffect(() => {
-    // This is the crucial step to ensure dark mode class is applied to the root element
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [theme]);
-  // --- END UI THEME CLASSES ---
 
-
-  // --- Data Fetching & CRUD (Unchanged logic) ---
+  // ---------------- Data fetching ----------------
   const fetchAdminData = useCallback(async (isInitial = false) => {
     setError(null);
     if (!authToken) {
@@ -397,9 +375,9 @@ export function AdminDashboardPage() {
     else setLoadingRefresh(true);
 
     try {
-      const ordersUrl = `${BASE_URL}/api/admin/orders`; 
+      const ordersUrl = `${BASE_URL}/api/admin/orders`;
       const productsUrl = `${BASE_URL}/api/products`;
-      
+
       const [ordersResponse, productsResponse] = await Promise.all([
         fetch(ordersUrl, { headers: { 'x-auth-token': authToken } }),
         fetch(productsUrl)
@@ -408,19 +386,19 @@ export function AdminDashboardPage() {
       if (ordersResponse.status === 401) {
         throw new Error("Session expired. Token invalid. Please login again.");
       }
-      
+
       if (!ordersResponse.ok) {
-         throw new Error(`Failed to fetch orders. Status: ${ordersResponse.status} from URL: ${ordersUrl}`);
+        throw new Error(`Failed to fetch orders. Status: ${ordersResponse.status} from URL: ${ordersUrl}`);
       }
       if (!productsResponse.ok) {
         throw new Error(`Failed to fetch products. Status: ${productsResponse.status}`);
       }
-      
+
       const ordersText = await ordersResponse.text();
       if (!ordersText.trim() || ordersText.trim().startsWith('<')) {
         throw new Error("Network/Session Error. Unexpected empty/HTML response instead of JSON. (Backend not running or down)");
       }
-      
+
       const parsedOrders = JSON.parse(ordersText) as any[];
       const productsData = await productsResponse.json();
 
@@ -430,7 +408,7 @@ export function AdminDashboardPage() {
         total_amount: o.total_amount ?? 0,
         status: o.status,
         created_at: o.created_at
-          ? (typeof o.created_at === 'string' ? o.created_at : o.created_at) 
+          ? (typeof o.created_at === 'string' ? o.created_at : o.created_at)
           : new Date().toISOString(),
         user_details: {
           name: o.user_details?.name ?? 'Unknown',
@@ -476,11 +454,11 @@ export function AdminDashboardPage() {
 
   const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
     if (!authToken) return;
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o ));
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     try {
       const resp = await fetch(`${BASE_URL}/api/admin/orders/${orderId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken },
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
         body: JSON.stringify({ status: newStatus })
       });
       if (!resp.ok) {
@@ -498,11 +476,11 @@ export function AdminDashboardPage() {
     if (!window.confirm(`Are you sure you want to delete Order ID ${orderId}?`)) {
       return;
     }
-    setOrders(prev => prev.filter(o => o.id !== orderId)); 
+    setOrders(prev => prev.filter(o => o.id !== orderId));
     try {
       const resp = await fetch(`${BASE_URL}/api/admin/orders/${orderId}`, {
         method: 'DELETE',
-        headers: { 'x-auth-token': authToken }
+        headers: { 'x-auth-token': authToken || '' }
       });
       if (!resp.ok) {
         throw new Error('Failed to delete order on server.');
@@ -510,56 +488,116 @@ export function AdminDashboardPage() {
     } catch (err) {
       console.error('Delete error:', err);
       alert('Network error during delete! Reverting data.');
-      fetchAdminData(false); 
+      fetchAdminData(false);
     }
   };
 
-  // --- AI Logic (Unchanged) ---
-  const handleAIChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiQuery.trim()) return;
-    setAiResponse('...Processing Command...');
+  // ---------------- AI / Image Flow ----------------
+  // Key change: single coordinated flow:
+  // 1) If imageFile is present -> upload to backend /api/admin/ai-image (multipart)
+  // 2) Use returned imageUrl in subsequent /api/admin/ai-command call
+  // 3) If no imageFile, call /api/admin/ai-command directly
+
+  const uploadImageToBackend = async (file: File) : Promise<{ success: boolean; imageUrl?: string; message?: string }> => {
+    if (!authToken) return { success: false, message: 'Not authenticated' };
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/ai-image`, {
+        method: 'POST',
+        headers: {
+          'x-auth-token': authToken || ''
+        },
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, message: data.message || `Upload failed: ${res.status}` };
+      }
+      // backend returns { success: true, imageUrl }
+      return { success: true, imageUrl: data.imageUrl || data.secure_url || '', message: data.message || 'Uploaded' };
+    } catch (err: any) {
+      console.error('Image upload error:', err);
+      return { success: false, message: err.message || 'Network error' };
+    }
+  };
+
+  const callAiCommand = async (command: string, imageUrl?: string) : Promise<{ ok: boolean; payload: any }> => {
+    if (!authToken) return { ok: false, payload: { message: 'Not authenticated' } };
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/ai-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
+        body: JSON.stringify({ command, imageUrl })
+      });
+      const data = await res.json();
+      return { ok: res.ok, payload: data };
+    } catch (err: any) {
+      console.error('AI command call failed:', err);
+      return { ok: false, payload: { message: err.message || 'Network error' } };
+    }
+  };
+
+  // Unified handler that handles image+command or text-only
+  const handleExecuteAi = async () => {
+    if (!aiQuery.trim() && !imageFile) {
+      setAiResponse('Please provide an AI command or attach an image.');
+      return;
+    }
+    setAiResponse('...Processing AI Command...');
     setLoadingRefresh(true);
 
     try {
-      const response = await fetch(`${BASE_URL}/api/admin/ai-command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': authToken ?? ''
-        },
-        body: JSON.stringify({ command: aiQuery.trim() })
-      });
+      let imageUrl: string | undefined = undefined;
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        const serverMessage = result.message || `Server responded with status code ${response.status}.`;
-        if (response.status === 401 || response.status === 403) {
-           setAiResponse(`🚨 Error ${response.status}: Login/Admin access required. Please log in again.`);
-        } else if (response.status === 503) {
-           setAiResponse(`🧠 Error 503: AI Service Unavailable. Backend message: ${serverMessage}.`);
-        } else {
-           setAiResponse(`❌ Error ${response.status}: Command failed. Backend message: ${serverMessage}`);
+      if (imageFile) {
+        // upload first
+        setAiResponse('Uploading image to backend (Cloudinary)...');
+        const up = await uploadImageToBackend(imageFile);
+        if (!up.success) {
+          setAiResponse(`❌ Image upload failed: ${up.message}`);
+          setLoadingRefresh(false);
+          return;
         }
-        throw new Error(serverMessage);
+        imageUrl = up.imageUrl;
+        setAiResponse(`Image uploaded. Image URL: ${imageUrl}\nSending command to AI...`);
       }
 
-      if (result.success) {
-        setAiResponse(`✅ Success: ${result.result || result.message || 'Command executed.'}`);
-        setAiQuery('');
-        fetchAdminData();
-      } else {
-        setAiResponse(`⚠️ Warning: ${result.message || 'Command failed (Success status was false).'}`);
+      // Call AI command with optional imageUrl
+      const aiResp = await callAiCommand(aiQuery.trim() || 'Process the attached image', imageUrl);
+      if (!aiResp.ok) {
+        const message = aiResp.payload?.result || aiResp.payload?.message || 'AI command failed';
+        setAiResponse(`❌ AI Error: ${message}`);
+        setLoadingRefresh(false);
+        return;
       }
-    } catch (err) {
-      const networkError = err instanceof Error ? err.message : 'Unknown Network Error';
-      setAiResponse(`🔴 FATAL NETWORK ERROR: Server connection failed. Error: ${networkError}.`);
+
+      // Successful result can be object or text
+      const payload = aiResp.payload;
+      if (payload.success && payload.result) {
+        setAiResponse(`✅ AI Result:\n${String(payload.result).trim()}`);
+        // if result indicates DB changes, refresh data
+        fetchAdminData(false);
+      } else if (payload.result) {
+        setAiResponse(`AI Response:\n${String(payload.result)}`);
+      } else {
+        setAiResponse(`AI Response:\n${JSON.stringify(payload).slice(0, 2000)}`);
+      }
+
+      // Clear image & query if success
+      // (keep files if you want to re-run)
+      // setImageFile(null);
+      // setImagePreview(null);
+      // setAiQuery('');
+    } catch (err: any) {
+      console.error('Execute AI failed:', err);
+      setAiResponse(`🔴 FATAL NETWORK ERROR: ${err.message || err}`);
     } finally {
       setLoadingRefresh(false);
     }
   };
 
+  // Analyze frontend endpoint (exists server-side)
   const handleAnalyze = async () => {
     setAiResponse('🧠 Requesting frontend analysis...');
     setLoadingRefresh(true);
@@ -584,6 +622,7 @@ export function AdminDashboardPage() {
     }
   };
 
+  // ---------------- Files (unchanged) ----------------
   const loadFiles = async () => {
     try {
       const res = await fileService.listFiles();
@@ -615,51 +654,21 @@ export function AdminDashboardPage() {
     }
   };
 
+  // ---------------- Image selection & preview ----------------
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0]);
-    }
-  };
-
-  const handleImageCommand = async () => {
-    if (!authToken) return alert('Not authorized.');
-    if (!imageFile) return alert('Please choose an image first.');
-    if (!aiQuery) return alert('Please enter a command (e.g., "Add this image to product X").');
-
-    setAiResponse('🧠 Uploading image and sending to AI...');
-    setLoadingRefresh(true);
-    try {
-      const formData = new FormData();
-      formData.append('image', imageFile); 
-      formData.append('command', aiQuery);
-
-      const res = await fetch(`${BASE_URL}/api/admin/ai-image`, {
-        method: 'POST',
-        headers: { 'x-auth-token': authToken || '' },
-        body: formData
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setAiResponse(`❌ Error ${res.status}: ${data.message || 'Upload failed.'}`);
-      } else {
-        setAiResponse(`✅ ${data.message || 'AI processed image successfully.'}\n${data.result ? String(data.result).slice(0,200) : ''}`);
-        loadFiles();
-        fetchAdminData(false);
-      }
-    } catch (err:any) {
-      console.error('AI image upload failed:', err);
-      setAiResponse(`🔴 Network Error: ${err.message || err}`);
-    } finally {
-      setLoadingRefresh(false);
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(String(reader.result || ''));
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
   useEffect(() => {
     loadFiles();
   }, []);
-  // --- END Data Fetching & CRUD ---
 
+  // ---------------- computed metrics ----------------
   const deliveredOrders = orders.filter(o => o.status === 'Delivered');
   const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   const pendingOrdersCount = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
@@ -672,25 +681,21 @@ export function AdminDashboardPage() {
     localStorage.clear();
     navigate('/admin/login', { replace: true });
   };
-  
-  // Custom scroll handler for NavItems
+
   const scrollToSection = (key: string) => {
-      let ref;
-      if (key === 'ai') ref = aiRef;
-      else if (key === 'orders') ref = ordersRef;
-      else if (key === 'editor') ref = editorRef;
-      else return; 
-      
-      setIsSidebarOpen(false); 
+    let ref: React.RefObject<HTMLElement> | null = null;
+    if (key === 'ai') ref = aiRef as unknown as React.RefObject<HTMLElement>;
+    else if (key === 'orders') ref = ordersRef as unknown as React.RefObject<HTMLElement>;
+    else if (key === 'editor') ref = editorRef as unknown as React.RefObject<HTMLElement>;
+    else return;
 
-      if (ref && ref.current) {
-          // Add a small offset to account for the sticky header
-          const yOffset = -80; 
-          const y = ref.current.getBoundingClientRect().top + window.scrollY + yOffset;
-          window.scrollTo({ top: y, behavior: 'smooth' });
-      }
+    setIsSidebarOpen(false);
+    if (ref && ref.current) {
+      const yOffset = -80;
+      const y = ref.current.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
   };
-
 
   if (showFullPageLoader) {
     return (
@@ -707,9 +712,9 @@ export function AdminDashboardPage() {
         <XCircle className="w-16 h-16 text-red-500 mb-4 animate-pulse" />
         <h1 className="text-3xl font-bold text-red-500">DATA LOAD FAILED</h1>
         <p className={`text-lg ${themeClasses.subText} mt-2 p-3 ${themeClasses.cardBg} rounded text-center max-w-lg border border-red-500/50 shadow-xl`}>
-            {error}
-            <br />
-            <span className='text-sm text-yellow-500'>Backend URL aur Firebase/DB Connection check karein.</span>
+          {error}
+          <br />
+          <span className='text-sm text-yellow-500'>Backend URL aur Firebase/DB Connection check karein.</span>
         </p>
         <button onClick={() => { setLoadingInitial(true); fetchAdminData(true); }} className={`mt-6 ${isDark ? themeClasses.primary : 'bg-blue-600 hover:bg-blue-700'} p-3 px-6 rounded-xl transition shadow-lg text-white`}>Try Again</button>
         <button onClick={handleLogout} className={`mt-4 bg-gray-500 hover:bg-gray-600 p-3 px-6 rounded-xl transition text-white`}>Logout</button>
@@ -717,155 +722,141 @@ export function AdminDashboardPage() {
     );
   }
 
-  // Common button styling for icon-only buttons
   const iconButtonClasses = `p-3 rounded-xl transition duration-300 flex items-center justify-center`;
-  
-  // Navigation items for the sidebar (Admin Panel is main page)
+
   const navItems = [
-      { icon: LayoutDashboard, label: "Admin Dashboard", key: "dashboard", onClick: () => scrollToSection('dashboard-start') }, // Scroll to the very top
-      { icon: Package, label: "Orders Queue", key: "orders", onClick: () => scrollToSection('orders') },
-      { icon: ListPlus, label: "Manage Products", key: "products", onClick: () => navigate('/admin/products') },
-      { icon: Settings, label: "Files/Code Editor", key: "editor", onClick: () => scrollToSection('editor') },
-      { icon: Cpu, label: "AI Console", key: "ai", onClick: () => scrollToSection('ai') },
+    { icon: LayoutDashboard, label: "Admin Dashboard", key: "dashboard", onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+    { icon: Package, label: "Orders Queue", key: "orders", onClick: () => scrollToSection('orders') },
+    { icon: ListPlus, label: "Manage Products", key: "products", onClick: () => navigate('/admin/products') },
+    { icon: Settings, label: "Files/Code Editor", key: "editor", onClick: () => scrollToSection('editor') },
+    { icon: Cpu, label: "AI Console", key: "ai", onClick: () => scrollToSection('ai') },
   ];
 
   return (
     <div className={`min-h-screen flex ${themeClasses.bg} ${themeClasses.text} font-sans`}>
-      
-      {/* --- Sidebar (Desktop/Tablet) --- */}
+      {/* Sidebar */}
       <div className={`hidden md:block w-64 ${themeClasses.sidebarBg} border-r ${themeClasses.cardBorder} p-5 sticky top-0 h-screen transition-all duration-300`}>
-          <div className={`flex items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
-              <span className={`text-3xl font-extrabold ${themeClasses.primaryText} `}>AP</span>
-              <span className={`text-xl font-semibold ml-2 ${themeClasses.text}`}>Admin Panel</span>
-          </div>
+        <div className={`flex items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
+          <span className={`text-3xl font-extrabold ${themeClasses.primaryText}`}>AP</span>
+          <span className={`text-xl font-semibold ml-2 ${themeClasses.text}`}>Admin Panel</span>
+        </div>
 
-          <nav className="space-y-2">
-              {navItems.map(item => (
-                  <NavItem
-                      key={item.key}
-                      icon={item.icon}
-                      label={item.label}
-                      isActive={item.key === 'dashboard'} // Keeping dashboard as active for this page
-                      onClick={item.onClick} 
-                      isDarkTheme={isDark}
-                  />
-              ))}
-          </nav>
+        <nav className="space-y-2">
+          {navItems.map(item => (
+            <NavItem
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              isActive={item.key === 'dashboard'}
+              onClick={item.onClick}
+              isDarkTheme={isDark}
+            />
+          ))}
+        </nav>
 
-          <div className="mt-auto absolute bottom-5 left-5 right-5">
-              <button
-                  onClick={handleLogout}
-                  className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
-              >
-                  <LogOut className="w-5 h-5 mr-3" />
-                  <span className="font-medium text-sm">Log Out</span>
-              </button>
-          </div>
+        <div className="mt-auto absolute bottom-5 left-5 right-5">
+          <button
+            onClick={handleLogout}
+            className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            <span className="font-medium text-sm">Log Out</span>
+          </button>
+        </div>
       </div>
-      
-      {/* --- Mobile Sidebar Overlay --- */}
+
+      {/* Mobile Sidebar */}
       <AnimatePresence>
-          {isSidebarOpen && (
-              <motion.div
-                  initial={{ x: '-100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '-100%' }}
-                  transition={{ type: "tween", duration: 0.2 }}
-                  className={`fixed inset-y-0 left-0 w-64 z-50 md:hidden ${themeClasses.sidebarBg} p-5 border-r ${themeClasses.cardBorder}`}
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: "tween", duration: 0.2 }}
+            className={`fixed inset-y-0 left-0 w-64 z-50 md:hidden ${themeClasses.sidebarBg} p-5 border-r ${themeClasses.cardBorder}`}
+          >
+            <div className={`flex justify-between items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
+              <span className={`text-3xl font-extrabold ${themeClasses.primaryText}`}>AP</span>
+              <button onClick={() => setIsSidebarOpen(false)} className={`${themeClasses.text} p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50`}>
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <nav className="space-y-2">
+              {navItems.map(item => (
+                <NavItem
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={item.key === 'dashboard'}
+                  onClick={() => { item.onClick(); setIsSidebarOpen(false); }}
+                  isDarkTheme={isDark}
+                />
+              ))}
+            </nav>
+            <div className="mt-10">
+              <button
+                onClick={handleLogout}
+                className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
               >
-                  <div className={`flex justify-between items-center mb-10 pb-4 border-b ${themeClasses.cardBorder}`}>
-                      <span className={`text-3xl font-extrabold ${themeClasses.primaryText}`}>AP</span>
-                      <button onClick={() => setIsSidebarOpen(false)} className={`${themeClasses.text} p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50`}>
-                          <X className="w-6 h-6" />
-                      </button>
-                  </div>
-                  <nav className="space-y-2">
-                      {navItems.map(item => (
-                          <NavItem
-                              key={item.key}
-                              icon={item.icon}
-                              label={item.label}
-                              isActive={item.key === 'dashboard'}
-                              onClick={() => { item.onClick(); setIsSidebarOpen(false); }}
-                              isDarkTheme={isDark}
-                          />
-                      ))}
-                  </nav>
-                  <div className="mt-10">
-                    <button
-                        onClick={handleLogout}
-                        className={`flex items-center w-full px-4 py-3 rounded-xl transition duration-200 border-l-4 border-transparent hover:bg-red-100 dark:hover:bg-red-600/20 text-red-500 dark:text-red-400`}
-                    >
-                        <LogOut className="w-5 h-5 mr-3" />
-                        <span className="font-medium text-sm">Log Out</span>
-                    </button>
-                  </div>
-              </motion.div>
-          )}
+                <LogOut className="w-5 h-5 mr-3" />
+                <span className="font-medium text-sm">Log Out</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
-      
-      {/* --- Main Content Area --- */}
+
+      {/* Main */}
       <div className="flex-1 overflow-x-hidden">
-
-        {/* --- Top Header / Search Bar (FIXED POSITION) --- */}
         <header className={`sticky top-0 z-40 p-4 md:p-6 flex justify-between items-center ${themeClasses.headerBg} border-b ${themeClasses.cardBorder} shadow-lg shadow-black/10`}>
-            
-            {/* Mobile Menu & Dashboard Title */}
-            <div className='flex items-center'>
-                <button onClick={() => setIsSidebarOpen(true)} className={`md:hidden p-2 rounded-lg ${themeClasses.text} hover:bg-gray-100 dark:hover:bg-gray-700/50 mr-3`}>
-                    <Menu className="w-6 h-6" />
-                </button>
-                <h1 className={`text-xl md:text-2xl font-bold ${themeClasses.text}`}>Admin Dashboard</h1>
-            </div>
-            
-            {/* Search and User Profile */}
-            <div className="flex items-center space-x-4">
-                <div className={`relative hidden sm:block w-64`}>
-                    <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${themeClasses.subText}`} />
-                    <input
-                        type="text"
-                        placeholder="Search Dashboard..."
-                        className={`w-full p-2 pl-10 rounded-xl text-sm ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-1 focus:ring-blue-500 dark:focus:ring-cyan-500 transition`}
-                    />
-                </div>
-                
-                {/* Icon Buttons (Theme Toggle & Refresh) */}
-                <div className="flex space-x-2">
-                    {/* Dark/Light Mode Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        className={`${iconButtonClasses} ${themeClasses.cardBg} ${themeClasses.text} shadow-md border ${themeClasses.cardBorder}`}
-                        title={isDark ? "Light Mode" : "Dark Mode"}
-                    >
-                        {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-500" />}
-                    </button>
+          <div className='flex items-center'>
+            <button onClick={() => setIsSidebarOpen(true)} className={`md:hidden p-2 rounded-lg ${themeClasses.text} hover:bg-gray-100 dark:hover:bg-gray-700/50 mr-3`}>
+              <Menu className="w-6 h-6" />
+            </button>
+            <h1 className={`text-xl md:text-2xl font-bold ${themeClasses.text}`}>Admin Dashboard</h1>
+          </div>
 
-                    {/* Refresh Button */}
-                    <button
-                        onClick={() => fetchAdminData(false)}
-                        disabled={loadingRefresh}
-                        className={`${iconButtonClasses} bg-gray-200 hover:bg-gray-300 text-gray-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:text-white ${loadingRefresh ? 'opacity-50 cursor-not-allowed' : ''} shadow-md`}
-                        title="Refresh Data"
-                    >
-                        {loadingRefresh ? <Loader className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
-                    </button>
-                </div>
-                
-                {/* User Info (Desktop only - Barbershop Style) */}
-                <div className={`hidden lg:flex items-center space-x-2 border-l ${themeClasses.cardBorder} pl-4`}>
-                    <div className={`w-10 h-10 rounded-full bg-blue-100 dark:bg-indigo-500 flex items-center justify-center text-blue-600 dark:text-white font-bold text-sm`}>A</div>
-                    <div className='text-right'>
-                        <p className={`text-sm font-semibold ${themeClasses.text}`}>Admin User</p>
-                        <p className={`text-xs ${themeClasses.subText}`}>admin@example.com</p>
-                    </div>
-                </div>
+          <div className="flex items-center space-x-4">
+            <div className={`relative hidden sm:block w-64`}>
+              <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${themeClasses.subText}`} />
+              <input
+                type="text"
+                placeholder="Search Dashboard..."
+                className={`w-full p-2 pl-10 rounded-xl text-sm ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-1 focus:ring-blue-500 dark:focus:ring-cyan-500 transition`}
+              />
             </div>
+
+            <div className="flex space-x-2">
+              <button
+                onClick={toggleTheme}
+                className={`${iconButtonClasses} ${themeClasses.cardBg} ${themeClasses.text} shadow-md border ${themeClasses.cardBorder}`}
+                title={isDark ? "Light Mode" : "Dark Mode"}
+              >
+                {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-500" />}
+              </button>
+
+              <button
+                onClick={() => fetchAdminData(false)}
+                disabled={loadingRefresh}
+                className={`${iconButtonClasses} bg-gray-200 hover:bg-gray-300 text-gray-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:text-white ${loadingRefresh ? 'opacity-50 cursor-not-allowed' : ''} shadow-md`}
+                title="Refresh Data"
+              >
+                {loadingRefresh ? <Loader className="w-5 h-5 animate-spin" /> : <RefreshCcw className="w-5 h-5" />}
+              </button>
+            </div>
+
+            <div className={`hidden lg:flex items-center space-x-2 border-l ${themeClasses.cardBorder} pl-4`}>
+              <div className={`w-10 h-10 rounded-full bg-blue-100 dark:bg-indigo-500 flex items-center justify-center text-blue-600 dark:text-white font-bold text-sm`}>A</div>
+              <div className='text-right'>
+                <p className={`text-sm font-semibold ${themeClasses.text}`}>Admin User</p>
+                <p className={`text-xs ${themeClasses.subText}`}>admin@example.com</p>
+              </div>
+            </div>
+          </div>
         </header>
 
-        {/* --- Main Dashboard Content (Reference for scrolling) --- */}
         <main className="p-4 md:p-6 lg:p-8 space-y-8" id="dashboard-start">
-
-          {/* KEY METRICS (Light Mode: Clean Cards, Dark Mode: Colored Cards) */}
+          {/* Metrics */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {[
               { title: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, subtext: 'Delivered Total', color: 'text-green-500', iconBg: 'bg-green-100 dark:bg-black/20', darkBg: themeClasses.metricBg1 },
@@ -875,79 +866,91 @@ export function AdminDashboardPage() {
             ].map((metric, index) => (
               <motion.div
                 key={index}
-                // Light Mode: Clean White Card, Dark Mode: Colored Card
                 className={`p-5 rounded-xl ${isDark ? metric.darkBg : themeClasses.cardBg} shadow-lg ${themeClasses.cardBorder} border transition-all duration-300`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
                 <div className="flex justify-between items-center">
-                    <p className={`text-sm font-medium ${isDark ? 'text-white/80' : themeClasses.subText}`}>{metric.title}</p>
-                    <div className={`p-2 rounded-full ${metric.iconBg}`}>
-                        <metric.icon className={`w-6 h-6 ${isDark ? 'text-white' : metric.color}`} />
-                    </div>
+                  <p className={`text-sm font-medium ${isDark ? 'text-white/80' : themeClasses.subText}`}>{metric.title}</p>
+                  <div className={`p-2 rounded-full ${metric.iconBg}`}>
+                    <metric.icon className={`w-6 h-6 ${isDark ? 'text-white' : metric.color}`} />
+                  </div>
                 </div>
                 <p className={`text-3xl font-extrabold mt-2 ${isDark ? 'text-white' : metric.color}`}>{metric.value}</p>
                 <p className={`text-xs mt-1 ${isDark ? 'text-white/70' : themeClasses.subText}`}>{metric.subtext}</p>
               </motion.div>
             ))}
           </div>
-          
+
           <hr className={`border-t ${themeClasses.cardBorder}`} />
 
-          {/* AI COMMAND INTERFACE (Increased Height/Width & Image Preview) */}
+          {/* AI Command + Image Assistant */}
           <div ref={aiRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
             <h3 className={`text-2xl font-bold ${themeClasses.text} mb-5 flex items-center`}>
               <Cpu className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
               AI Command & Image Assistant
             </h3>
 
-            {/* AI Console Input Area (Increased Height/Width) */}
-            <form onSubmit={handleAIChatSubmit}>
-              <div className="flex flex-col sm:flex-row gap-4 mb-4 items-stretch">
-                
-                {/* Image Upload Button (With File Name Preview) */}
+            <div className="flex flex-col gap-4 mb-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-stretch">
                 <div className="flex-none w-full sm:w-auto">
-                    <input
-                        id="aiImageInput"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className={`hidden`} 
-                    />
-                    <label 
-                        htmlFor="aiImageInput" 
-                        // Barbershop style yellow button
-                        className={`cursor-pointer ${themeClasses.warning} font-semibold p-3 rounded-xl flex items-center gap-2 text-sm shadow-lg w-full justify-center`}
-                    >
-                        <ImagePlus className="w-5 h-5 text-yellow-900 dark:text-white" />
-                        {imageFile ? imageFile.name.substring(0, 20) + (imageFile.name.length > 20 ? '...' : '') : 'Select Image'}
-                    </label>
+                  <input
+                    id="aiImageInput"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className={`hidden`}
+                  />
+                  <label
+                    htmlFor="aiImageInput"
+                    className={`cursor-pointer ${themeClasses.warning} font-semibold p-3 rounded-xl flex items-center gap-2 text-sm shadow-lg w-full justify-center`}
+                  >
+                    <ImagePlus className="w-5 h-5 text-yellow-900 dark:text-white" />
+                    {imageFile ? (imageFile.name.length > 28 ? imageFile.name.slice(0, 25) + '...' : imageFile.name) : 'Select Image'}
+                  </label>
+
+                  {/* image preview */}
+                  {imagePreview && (
+                    <div className="mt-2 p-2 rounded border border-gray-200 dark:border-gray-700 max-w-xs">
+                      <img src={imagePreview} alt="preview" className="w-full h-auto rounded" />
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-gray-600 dark:text-gray-300">{imageFile?.type || 'image'}</span>
+                        <button onClick={() => { setImageFile(null); setImagePreview(null); }} className="text-xs text-red-500 hover:underline">Remove</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                {/* Command Input Field */}
+
                 <textarea
                   value={aiQuery}
                   onChange={(e) => setAiQuery(e.target.value)}
-                  placeholder={imageFile ? "Image-related command or general query..." : "AI Command type karein (e.g., 'Order 10 ko Delivered...')" }
+                  placeholder={imageFile ? "Image-related command or general query..." : "AI Command type karein (e.g., 'Mark order ORD-123 delivered')"}
                   className={`flex-grow p-4 rounded-xl text-base shadow-inner ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500`}
-                  style={{ minHeight: '120px', resize: 'vertical' }} // Increased height
+                  style={{ minHeight: '120px', resize: 'vertical' }}
                 />
-                
-                {/* Execute Button */}
-                <button
-                    type="submit"
+
+                <div className="flex flex-col gap-3 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleExecuteAi}
                     disabled={loadingRefresh}
-                    onClick={imageFile ? handleImageCommand : handleAIChatSubmit}
-                    className={`${themeClasses.primary} text-white p-4 rounded-xl flex justify-center items-center font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed gap-2 px-6 shadow-lg w-full sm:w-auto`}
-                >
-                  {loadingRefresh && aiResponse && aiResponse.includes('Processing') ? <Loader className="w-5 h-5 animate-spin" /> : <Send className='w-5 h-5' />}
-                  Execute AI
-                </button>
+                    className={`${themeClasses.primary} text-white p-4 rounded-xl flex justify-center items-center font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed gap-2 px-6 shadow-lg`}
+                  >
+                    {loadingRefresh ? <Loader className="w-5 h-5 animate-spin" /> : <Send className='w-5 h-5' />}
+                    Execute AI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAiQuery(''); setAiResponse(null); setImageFile(null); setImagePreview(null); }}
+                    className={`bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl transition font-medium text-sm px-4`}
+                  >
+                    Clear Console
+                  </button>
+                </div>
               </div>
-            </form>
-            
-            <div className='flex gap-4 mt-3'>
+
+              <div className='flex gap-4 mt-1'>
                 <button
                   type="button"
                   onClick={handleAnalyze}
@@ -955,31 +958,24 @@ export function AdminDashboardPage() {
                 >
                   Analyze Frontend
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setAiQuery(''); setAiResponse(null); setImageFile(null); }}
-                  className={`bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl transition font-medium text-sm px-4`}
-                >
-                  Clear Console
-                </button>
+              </div>
             </div>
 
             {aiResponse && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className={`mt-4 p-4 text-sm rounded-xl border ${
-                  aiResponse.includes('Error') || aiResponse.includes('FATAL') || aiResponse.includes('❌')
-                    ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300'
-                    : 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-700 dark:text-green-300'
+                className={`mt-4 p-4 text-sm rounded-xl border ${aiResponse.includes('Error') || aiResponse.includes('FATAL') || aiResponse.includes('❌')
+                  ? 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300'
+                  : 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-700 dark:text-green-300'
                 }`}
               >
-                <pre className="whitespace-pre-wrap font-mono min-h-[120px]">{aiResponse}</pre> 
+                <pre className="whitespace-pre-wrap font-mono min-h-[120px]">{aiResponse}</pre>
               </motion.div>
             )}
           </div>
-          
-          {/* ORDERS MANAGEMENT TABLE */}
+
+          {/* Orders Table */}
           <div ref={ordersRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
             <h3 className={`text-2xl font-bold ${themeClasses.text} mb-5 flex items-center`}>
               <Package className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
@@ -1009,7 +1005,7 @@ export function AdminDashboardPage() {
                   {orders.length > 0 ? orders.map(order => (
                     <tr key={order.id} className={themeClasses.tableRowHover}>
                       <td className={`p-4 text-sm font-medium ${themeClasses.text} font-mono`}>
-                          {order.order_number || order.id.substring(0, 8)}...
+                        {order.order_number || (order.id ? order.id.substring(0, 8) : '—')}
                       </td>
                       <td className={`p-4 text-sm`}><p className={`font-semibold ${themeClasses.text}`}>{order.user_details.name || 'N/A'}</p></td>
                       <td className="p-4 text-sm font-bold text-green-500">${(order.total_amount || 0).toFixed(2)}</td>
@@ -1056,34 +1052,32 @@ export function AdminDashboardPage() {
             </AnimatePresence>
 
           </div>
-          
-          {/* FILE EXPLORER (Code Editor) */}
+
+          {/* Files/Code Editor */}
           <div ref={editorRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
             <h2 className={`text-2xl font-bold mb-5 ${themeClasses.text} flex items-center`}>
               <FileText className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
               Frontend Files (Code Editor)
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* File List */}
               <div className={`space-y-2 max-h-96 overflow-y-auto p-3 rounded-xl border border-gray-300 bg-gray-100 dark:border-gray-700 dark:bg-gray-700/30 lg:col-span-1`}>
                 <h4 className={`text-lg font-semibold mb-2 ${themeClasses.text}`}>Project Files</h4>
                 {files.length === 0 && (
-                    <p className={`${themeClasses.subText} italic p-3`}>No files loaded.</p>
+                  <p className={`${themeClasses.subText} italic p-3`}>No files loaded.</p>
                 )}
                 {files.map((f, idx) => (
                   <div
                     key={idx}
                     onClick={() => openFile(f.path)}
-                    className={`cursor-pointer p-2 rounded text-sm transition-all duration-150 border-l-4 ${selectedFile && selectedFile.path === f.path 
-                        ? 'bg-blue-100 border-blue-500 font-semibold text-blue-700 dark:bg-cyan-500/20 dark:border-cyan-500 dark:text-cyan-400' 
-                        : 'text-gray-700 hover:bg-gray-200/50 border-transparent dark:text-gray-400 dark:hover:bg-gray-700/50'}`}
+                    className={`cursor-pointer p-2 rounded text-sm transition-all duration-150 border-l-4 ${selectedFile && selectedFile.path === f.path
+                      ? 'bg-blue-100 border-blue-500 font-semibold text-blue-700 dark:bg-cyan-500/20 dark:border-cyan-500 dark:text-cyan-400'
+                      : 'text-gray-700 hover:bg-gray-200/50 border-transparent dark:text-gray-400 dark:hover:bg-gray-700/50'}`}
                   >
                     {f.name}
                   </div>
                 ))}
               </div>
 
-              {/* Code Editor */}
               {selectedFile && (
                 <div className="space-y-4 lg:col-span-2">
                   <h3 className={`font-bold text-xl ${themeClasses.text} truncate`}>{selectedFile.name}</h3>
@@ -1091,8 +1085,7 @@ export function AdminDashboardPage() {
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value)}
                     rows={15}
-                    // Dark background for code editor in both themes for better contrast
-                    className={`w-full h-auto min-h-[400px] rounded p-4 text-sm font-mono shadow-inner resize-y bg-gray-900 border border-blue-500/50 text-yellow-100 dark:border-cyan-700/50 dark:text-yellow-300`} 
+                    className={`w-full h-auto min-h-[400px] rounded p-4 text-sm font-mono shadow-inner resize-y bg-gray-900 border border-blue-500/50 text-yellow-100 dark:border-cyan-700/50 dark:text-yellow-300`}
                   />
                   <button
                     onClick={saveFile}
@@ -1106,8 +1099,7 @@ export function AdminDashboardPage() {
           </div>
 
         </main>
-        
-        {/* Spacer for mobile bottom */}
+
         <div className='h-4 md:h-8'></div>
       </div>
     </div>
