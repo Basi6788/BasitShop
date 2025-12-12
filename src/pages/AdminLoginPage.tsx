@@ -1,12 +1,9 @@
-// Path: /src/pages/AdminLoginPage.tsx
-// 🔷 FINAL FIX: Added setTimeout to ensure localStorage updates before redirect
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, Loader, XCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader, XCircle, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
-// Backend API URL
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeo-backend.vercel.app';
+// Backend API URL (Vercel ya Localhost handle karega)
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://romeobackend.netlify.app';
 
 const AdminLoginPage: React.FC = () => {
     const [email, setEmail] = useState(''); 
@@ -16,8 +13,16 @@ const AdminLoginPage: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const navigate = useNavigate();
 
+    // Development backdoor for testing
     const MOCK_ADMIN_EMAIL = 'admin@app.com';
     const MOCK_ADMIN_PASS = '123456';
+
+    useEffect(() => {
+        // Page load pe purana session clear kar do taake naya login clean ho
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,61 +30,75 @@ const AdminLoginPage: React.FC = () => {
         setLoading(true);
 
         if (!email || !password) {
-            setError("Email aur password zaroori hain.");
+            setError("Email aur Password dono zaroori hain.");
             setLoading(false);
             return;
         }
 
         try {
-            const response = await fetch(`${BASE_URL}/api/login`, { // ✅ /api/login endpoint use kiya
+            console.log("Attempting login to:", `${BASE_URL}/api/login`);
+            
+            const response = await fetch(`${BASE_URL}/api/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
             });
 
-            if (!response.ok) {
-                 const text = await response.text();
-                if (text.includes('<!DOCTYPE')) {
-                    throw new Error(`FATAL BACKEND CONFIG ERROR: Server ne JSON ki bajaye HTML bhej diya (Status: ${response.status}).`);
-                }
-                const data = JSON.parse(text);
-                throw new Error(data.message || 'Login attempt failed.');
+            // Handle Non-JSON Responses (Vercel Crashes/HTML errors)
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") === -1) {
+                const text = await response.text();
+                throw new Error("Server Error: Received HTML instead of JSON. Check Backend Logs.");
             }
 
             const data = await response.json();
 
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed.');
+            }
+
+            // --- STRICT ADMIN CHECK ---
+            // Backend se userRole aana chahiye 'admin'
             if (data.token && data.userRole === 'admin') {
-                // SUCCESS: Token, Role aur Name save karo
+                
+                // 1. Store Credentials
                 localStorage.setItem('authToken', data.token);
                 localStorage.setItem('userName', data.userName || 'Admin');
                 localStorage.setItem('userRole', data.userRole);
                 
-                // ✅ FIX: 50ms delay diya taake LocalStorage update ho jaye
+                console.log("✅ Admin Login Success:", data.userName);
+
+                // 2. Redirect with slight delay for storage propagation
                 setTimeout(() => {
                     navigate('/admin/dashboard', { replace: true });
-                }, 50); // 50ms delay
+                }, 100);
                 
+            } else if (data.token && data.userRole !== 'admin') {
+                // Agar user login ho gya lekin wo Admin nahi hai
+                setError("Access Denied: Ye area sirf Admins ke liye hai.");
+                localStorage.clear(); // Token hata do
             } else {
-                setError(data.message || "Invalid Credentials. Access denied.");
+                setError("Invalid Server Response. Missing Token.");
             }
 
-        } catch (err) {
-            // --- MOCK FALLBACK LOGIC ---
+        } catch (err: any) {
+            console.error("Login Error:", err);
+
+            // --- MOCK FALLBACK (Emergency Access) ---
             if (email === MOCK_ADMIN_EMAIL && password === MOCK_ADMIN_PASS) {
-                console.warn("Network failed/Backend issue. Using mock fallback for access.");
+                console.warn("⚠️ Network failed. Using Mock Admin Access.");
                 localStorage.setItem('authToken', 'mock_admin_token_fallback');
                 localStorage.setItem('userName', 'Mock Admin');
                 localStorage.setItem('userRole', 'admin');
                 
-                // ✅ Mock fallback mein bhi delay add kiya
                 setTimeout(() => {
                     navigate('/admin/dashboard', { replace: true });
-                }, 50); 
+                }, 100);
                 return;
             }
             // --- END MOCK FALLBACK ---
 
-            setError(`Login network error: ${err instanceof Error ? err.message : 'Unknown network failure.'}`);
+            setError(err.message || "Login failed. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -87,29 +106,34 @@ const AdminLoginPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
-            <div className="w-full max-w-md bg-gray-800 p-8 rounded-xl shadow-2xl border border-purple-700">
-                <h2 className="text-3xl font-bold text-cyan-400 mb-6 text-center border-b border-purple-700 pb-2">Admin Login</h2>
+            <div className="w-full max-w-md bg-gray-800 p-8 rounded-xl shadow-2xl border border-purple-700 relative overflow-hidden">
+                
+                {/* Decorative Background Blur */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+
+                <h2 className="text-3xl font-bold text-cyan-400 mb-2 text-center">Admin Portal</h2>
+                <p className="text-center text-gray-400 mb-6 text-sm">Romeo Backend V4.0 Connection</p>
 
                 {error && (
-                    <div className="bg-red-900 p-3 rounded-lg border border-red-700 text-red-300 text-sm mb-4 flex items-center">
-                        <XCircle className="w-5 h-5 mr-2" /> {error}
+                    <div className="bg-red-900/50 border border-red-500 p-3 rounded-lg text-red-200 text-sm mb-5 flex items-start animate-pulse">
+                        <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                        <span>{error}</span>
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-5">
                     
                     {/* Email Input */}
                     <div>
-                        <label htmlFor="email" className="sr-only">Email</label>
+                        <label className="block text-gray-400 text-xs uppercase tracking-wider mb-1">Email Address</label>
                         <div className="relative">
-                            <Mail className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 top-1/2 left-3" />
+                            <Mail className="absolute w-5 h-5 text-purple-400 top-3 left-3" />
                             <input
                                 type="email"
-                                id="email"
                                 value={email} 
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Admin Email"
-                                className="w-full p-3 pl-12 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:ring-purple-500"
+                                placeholder="admin@romeo.com"
+                                className="w-full p-3 pl-10 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all placeholder-gray-600"
                                 required
                             />
                         </div>
@@ -117,23 +141,21 @@ const AdminLoginPage: React.FC = () => {
 
                     {/* Password Input */}
                     <div>
-                        <label htmlFor="password" className="sr-only">Password</label>
+                        <label className="block text-gray-400 text-xs uppercase tracking-wider mb-1">Password</label>
                         <div className="relative">
-                            <Lock className="absolute w-5 h-5 text-gray-400 transform -translate-y-1/2 top-1/2 left-3" />
+                            <Lock className="absolute w-5 h-5 text-purple-400 top-3 left-3" />
                             <input
                                 type={showPassword ? "text" : "password"}
-                                id="password"
                                 value={password} 
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Password"
-                                className="w-full p-3 pl-12 pr-12 bg-gray-700 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:ring-purple-500"
+                                placeholder="••••••••"
+                                className="w-full p-3 pl-10 pr-10 bg-gray-900/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-all placeholder-gray-600"
                                 required
                             />
                              <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition"
-                                title={showPassword ? "Password chhupao" : "Password dikhao"}
+                                className="absolute right-3 top-3 text-gray-500 hover:text-white transition"
                             >
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
@@ -144,22 +166,34 @@ const AdminLoginPage: React.FC = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className={"w-full py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold transition duration-300 flex items-center justify-center disabled:opacity-50 btn-animated"}
+                        className={`w-full py-3 px-4 rounded-lg font-bold transition duration-300 flex items-center justify-center shadow-lg
+                            ${loading 
+                                ? 'bg-gray-700 cursor-not-allowed text-gray-400' 
+                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white hover:shadow-purple-500/25'
+                            }`}
                     >
                         {loading ? (
-                            <Loader className="w-5 h-5 animate-spin mr-2" />
+                            <>
+                                <Loader className="w-5 h-5 animate-spin mr-2" />
+                                Authenticating...
+                            </>
                         ) : (
-                            <LogIn className="w-5 h-5 mr-2" />
+                            <>
+                                <LogIn className="w-5 h-5 mr-2" />
+                                Login to Dashboard
+                            </>
                         )}
-                        {loading ? 'Logging In...' : 'LOGIN'}
                     </button>
                 </form>
 
-                <p className="text-center text-sm text-gray-500 mt-4">For Admin Use Only</p>
+                <div className="mt-6 text-center border-t border-gray-700 pt-4">
+                     <p className="text-xs text-gray-500">
+                        Secure Connection via Custom JWT
+                    </p>
+                </div>
             </div>
         </div>
     );
 };
 
 export default AdminLoginPage;
-
