@@ -88,7 +88,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
       ? new Date((order.created_at as any)._seconds * 1000).toLocaleString()
       : 'N/A');
 
-  const items = order.items || [];
+  const items = Array.isArray(order.items) ? order.items : [];
 
   const isDark = theme === 'dark';
   const bgColor = isDark ? 'bg-gray-800' : 'bg-white';
@@ -215,7 +215,7 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onClose, o
                     <span className={textColor}>{payInfo.account_number || 'N/A'}</span>
                   </p>
                   <p className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500 dark:border-yellow-700 text-yellow-800 dark:text-yellow-300 text-xs rounded-lg shadow-inner">
-                    Admin Note: Verify Payment First!
+                    Admin Note: Check Payment in Firebase DB first!
                   </p>
                 </div>
               </div>
@@ -362,7 +362,7 @@ export function AdminDashboardPage() {
     else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  // ---------------- Data fetching ----------------
+  // ---------------- Data fetching (From Firebase via Backend) ----------------
   const fetchAdminData = useCallback(async (isInitial = false) => {
     setError(null);
     if (!authToken) {
@@ -396,13 +396,13 @@ export function AdminDashboardPage() {
 
       const ordersText = await ordersResponse.text();
       if (!ordersText.trim() || ordersText.trim().startsWith('<')) {
-        throw new Error("Network/Session Error. Unexpected empty/HTML response instead of JSON. (Backend not running or down)");
+        throw new Error("Network/Session Error. Unexpected empty/HTML response. Check Firebase/Backend connection.");
       }
 
       const parsedOrders = JSON.parse(ordersText) as any[];
       const productsData = await productsResponse.json();
 
-      const safeOrders: Order[] = parsedOrders.map((o: any) => ({
+      const safeOrders: Order[] = Array.isArray(parsedOrders) ? parsedOrders.map((o: any) => ({
         id: o.id,
         order_number: o.order_number,
         total_amount: o.total_amount ?? 0,
@@ -433,7 +433,7 @@ export function AdminDashboardPage() {
           account_number: o.payment_info?.account_number,
           txn_id: o.payment_info?.txn_id
         }
-      }));
+      })) : [];
 
       setOrders(safeOrders);
       setProducts(Array.isArray(productsData) ? productsData : []);
@@ -466,7 +466,7 @@ export function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Update error:', err);
-      alert('Network error during status update or server failed! Reverting data.');
+      alert('Network error during status update or Firebase failed! Reverting data.');
       fetchAdminData(false);
     }
   };
@@ -492,10 +492,10 @@ export function AdminDashboardPage() {
     }
   };
 
-  // ---------------- AI / Image Flow ----------------
+  // ---------------- AI (Hugging Face) / Image Flow (Supabase) ----------------
   // Key change: single coordinated flow:
-  // 1) If imageFile is present -> upload to backend /api/admin/ai-image (multipart)
-  // 2) Use returned imageUrl in subsequent /api/admin/ai-command call
+  // 1) If imageFile is present -> upload to backend /api/admin/ai-image (uses Supabase now)
+  // 2) Use returned imageUrl in subsequent /api/admin/ai-command call (uses Hugging Face)
   // 3) If no imageFile, call /api/admin/ai-command directly
 
   const uploadImageToBackend = async (file: File) : Promise<{ success: boolean; imageUrl?: string; message?: string }> => {
@@ -514,7 +514,7 @@ export function AdminDashboardPage() {
       if (!res.ok) {
         return { success: false, message: data.message || `Upload failed: ${res.status}` };
       }
-      // backend returns { success: true, imageUrl }
+      // backend returns { success: true, imageUrl } from Supabase Storage
       return { success: true, imageUrl: data.imageUrl || data.secure_url || '', message: data.message || 'Uploaded' };
     } catch (err: any) {
       console.error('Image upload error:', err);
@@ -525,10 +525,11 @@ export function AdminDashboardPage() {
   const callAiCommand = async (command: string, imageUrl?: string) : Promise<{ ok: boolean; payload: any }> => {
     if (!authToken) return { ok: false, payload: { message: 'Not authenticated' } };
     try {
+      // Calls Backend which uses Hugging Face Inference API
       const res = await fetch(`${BASE_URL}/api/admin/ai-command`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': authToken || '' },
-        body: JSON.stringify({ command, imageUrl })
+        body: JSON.stringify({ command, imageUrl, provider: 'huggingface' })
       });
       const data = await res.json();
       return { ok: res.ok, payload: data };
@@ -544,7 +545,7 @@ export function AdminDashboardPage() {
       setAiResponse('Please provide an AI command or attach an image.');
       return;
     }
-    setAiResponse('...Processing AI Command...');
+    setAiResponse('...Processing Command via Hugging Face...');
     setLoadingRefresh(true);
 
     try {
@@ -552,7 +553,7 @@ export function AdminDashboardPage() {
 
       if (imageFile) {
         // upload first
-        setAiResponse('Uploading image to backend (Cloudinary)...');
+        setAiResponse('Uploading image to Supabase Storage...');
         const up = await uploadImageToBackend(imageFile);
         if (!up.success) {
           setAiResponse(`❌ Image upload failed: ${up.message}`);
@@ -560,7 +561,7 @@ export function AdminDashboardPage() {
           return;
         }
         imageUrl = up.imageUrl;
-        setAiResponse(`Image uploaded. Image URL: ${imageUrl}\nSending command to AI...`);
+        setAiResponse(`Image uploaded to Supabase. URL: ${imageUrl}\nSending prompt to Hugging Face...`);
       }
 
       // Call AI command with optional imageUrl
@@ -575,13 +576,13 @@ export function AdminDashboardPage() {
       // Successful result can be object or text
       const payload = aiResp.payload;
       if (payload.success && payload.result) {
-        setAiResponse(`✅ AI Result:\n${String(payload.result).trim()}`);
+        setAiResponse(`✅ HF Result:\n${String(payload.result).trim()}`);
         // if result indicates DB changes, refresh data
         fetchAdminData(false);
       } else if (payload.result) {
-        setAiResponse(`AI Response:\n${String(payload.result)}`);
+        setAiResponse(`HF Response:\n${String(payload.result)}`);
       } else {
-        setAiResponse(`AI Response:\n${JSON.stringify(payload).slice(0, 2000)}`);
+        setAiResponse(`HF Response:\n${JSON.stringify(payload).slice(0, 2000)}`);
       }
 
       // Clear image & query if success
@@ -599,7 +600,7 @@ export function AdminDashboardPage() {
 
   // Analyze frontend endpoint (exists server-side)
   const handleAnalyze = async () => {
-    setAiResponse('🧠 Requesting frontend analysis...');
+    setAiResponse('🧠 Requesting frontend analysis via Hugging Face...');
     setLoadingRefresh(true);
     try {
       const res = await fetch(`${BASE_URL}/api/admin/analyze-frontend`, {
@@ -626,9 +627,11 @@ export function AdminDashboardPage() {
   const loadFiles = async () => {
     try {
       const res = await fileService.listFiles();
-      setFiles(res || []);
+      // Safety check for map error
+      setFiles(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Failed to load files:', err);
+      setFiles([]);
     }
   };
 
@@ -701,7 +704,7 @@ export function AdminDashboardPage() {
     return (
       <div className={`min-h-screen flex items-center justify-center ${themeClasses.bg} ${themeClasses.text}`}>
         <Loader className="w-12 h-12 animate-spin text-blue-500 dark:text-cyan-500" />
-        <p className="ml-4 text-xl">Loading Admin Data...</p>
+        <p className="ml-4 text-xl">Loading Admin Data (Firebase)...</p>
       </div>
     );
   }
@@ -885,11 +888,11 @@ export function AdminDashboardPage() {
 
           <hr className={`border-t ${themeClasses.cardBorder}`} />
 
-          {/* AI Command + Image Assistant */}
+          {/* AI Command + Image Assistant (Hugging Face + Supabase) */}
           <div ref={aiRef} className={`${themeClasses.cardBg} p-6 rounded-xl border ${themeClasses.cardBorder} shadow-xl`}>
             <h3 className={`text-2xl font-bold ${themeClasses.text} mb-5 flex items-center`}>
               <Cpu className={`w-6 h-6 mr-3 ${themeClasses.primaryText}`} />
-              AI Command & Image Assistant
+              AI Command & Image Assistant (Hugging Face)
             </h3>
 
             <div className="flex flex-col gap-4 mb-4">
@@ -925,7 +928,7 @@ export function AdminDashboardPage() {
                 <textarea
                   value={aiQuery}
                   onChange={(e) => setAiQuery(e.target.value)}
-                  placeholder={imageFile ? "Image-related command or general query..." : "AI Command type karein (e.g., 'Mark order ORD-123 delivered')"}
+                  placeholder={imageFile ? "Image-related command or general query..." : "Hugging Face AI Command type karein..."}
                   className={`flex-grow p-4 rounded-xl text-base shadow-inner ${themeClasses.inputBg} ${themeClasses.text} placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500`}
                   style={{ minHeight: '120px', resize: 'vertical' }}
                 />
@@ -985,7 +988,7 @@ export function AdminDashboardPage() {
             {loadingRefresh && (
               <div className={`py-3 flex justify-center items-center gap-2 bg-gray-200/50 dark:bg-gray-700/50 rounded-t-lg border-b border-indigo-500`}>
                 <Loader className="w-5 h-5 animate-spin text-indigo-500" />
-                <span className={themeClasses.subText}>Refreshing data...</span>
+                <span className={themeClasses.subText}>Refreshing data (Firebase)...</span>
               </div>
             )}
 
